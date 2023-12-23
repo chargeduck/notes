@@ -46,6 +46,10 @@ export default defineConfig({
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/vuejs/vitepress' }
-    ]
+    ],
+    docFooter: {
+      prev: '上一篇',
+      next: '下一篇'
+    }
   }
 })
