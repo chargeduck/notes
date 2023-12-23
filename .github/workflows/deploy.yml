@@ -17,16 +17,16 @@ jobs:
         with:
           ref: 'master'
 
-      - name: Install npm
+      - name: Install yarn
         run: corepack enable
 
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Install dependencies
-        run: npm install
+        run: yarn install
 
       - name: Build Site
         run: npm run docs:build
