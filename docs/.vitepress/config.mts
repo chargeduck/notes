@@ -9,7 +9,16 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
+      { text: 'Examples', link: '/markdown-examples' },
+      {
+        text: '后端',
+        items: [
+          {
+            text: '消息中间件',
+            link: '/backend/mq/index'
+          }
+        ]
+      }
     ],
 
     sidebar: [
@@ -17,7 +26,20 @@ export default defineConfig({
         text: 'Examples',
         items: [
           { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
+          { text: 'Runtime API Examples', link: '/api-examples' },
+          {
+            text: 'Vitepress部署GithubPage',
+            link: '/frontend/vitepress/vitepress'
+          }
+        ]
+      },
+      {
+        text: '消息中间件',
+        items: [
+          {
+            text: 'ActiveMq尚硅谷版',
+            link: '/backend/mq/activemq_antguigu'
+          }
         ]
       }
     ],
