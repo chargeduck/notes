@@ -16,6 +16,10 @@ export default defineConfig({
           {
             text: '消息中间件',
             link: '/backend/mq/index'
+          },
+          {
+            text: '审批流',
+            link: '/backend/flowable/flowable'
           }
         ]
       }
@@ -39,6 +43,15 @@ export default defineConfig({
           {
             text: 'ActiveMq尚硅谷版',
             link: '/backend/mq/activemq_antguigu'
+          }
+        ]
+      },
+      {
+        text: '审批流',
+        items: [
+          {
+            text: 'Flowable审批流',
+            link: '/backend/flowable/flowable'
           }
         ]
       }
