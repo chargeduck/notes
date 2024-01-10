@@ -20,6 +20,10 @@ export default defineConfig({
           {
             text: '审批流',
             link: '/backend/flowable/flowable'
+          },
+          {
+            text: 'Nginx',
+            link: '/backend/nginx/nginx子请求鉴权'
           }
         ]
       }
@@ -52,6 +56,15 @@ export default defineConfig({
           {
             text: 'Flowable审批流',
             link: '/backend/flowable/flowable'
+          }
+        ]
+      },
+      {
+        text: '工具类',
+        items: [
+          {
+            text: 'EasyExcel导出工具类，动态合并表头',
+            link: '/backend/utils/DynamicMergeHeader'
           }
         ]
       }
