@@ -65,6 +65,10 @@ export default defineConfig({
           {
             text: 'EasyExcel导出工具类，动态合并表头',
             link: '/backend/utils/DynamicMergeHeader'
+          },
+          {
+            text: '导出Word工具类',
+            link: '/backend/utils/exportWord'
           }
         ]
       }
@@ -76,6 +80,10 @@ export default defineConfig({
     docFooter: {
       prev: '上一篇',
       next: '下一篇'
+    },
+    outline: {
+      label: '目录',
+      level: [1, 2]
     }
   }
 })
