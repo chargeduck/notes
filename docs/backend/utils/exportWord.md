@@ -49,7 +49,7 @@
 
 就类似下边这样的一个模板，最开始用`{companyName}`这样的占位符，结果原生poi给我的这个占位符识别成了三个段落，后来就改成这样了
 
-![image-20240124105715551](http://upyuncdn.lesscoding.net/image-20240124105715551.png)
+![image-20240124105715551](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/175b1611822f46cfaf60fa17d98c1701~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp#?w=918&h=277&s=10663&e=png&b=ffffff)
 
 ### 3. 准备数据
 我的数据存在一个巨大的`json`里边，要是其他的数据可以改造下边的`fillTableData`方法
@@ -278,7 +278,7 @@ public class DocxTest {
 {{$fe: userList t.id}}
 ```
 
-![image-20240124134047253](http://upyuncdn.lesscoding.net/image-20240124134047253.png)
+![image-20240124134047253](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa2f59f1b73c4e678cda548c5329d535~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=796\&h=240\&s=13037\&e=png\&b=ffffff)
 
 ### 3. 代码编写
 
