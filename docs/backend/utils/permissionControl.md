@@ -39,11 +39,7 @@
 ```java
 import java.lang.annotation.*;
 
-/**
- * @author eleven
- * @date 2024/2/18 9:09
- * @apiNote
- */
+
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
@@ -87,7 +83,6 @@ public @interface PermissionControl {
 > 这个版本存在一些问题，虽然能够成功的在最后加上了条件，但是使用了`IPage`这个`Mybatis-plus分页插件`的方法，会导致分页的`Total`和`Pages`数据不对，问题在于`Mybatis-plus分页插件`这个拦截器的执行顺序在自定义拦截器之前，所以导致分页查询条数的时候还没有根据注解添加条件
 
 ```java
-import cn.com.safeinfo.hesp.sdk.sys.exception.IllegalInputException;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
@@ -131,11 +126,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
-/**
- * @author eleven
- * @date 2023/8/15 14:41
- * @apiNote 基于Mybatis的sql拦截器
- */
+
 // 在sql预处理阶段拦截
 @Intercepts({@Signature(type = StatementHandler.class, method = "prepare", args = {Connection.class, Integer.class})})
 @Slf4j
@@ -183,7 +174,7 @@ public class PermissionControlInterceptor implements Interceptor {
         } catch (InvocationTargetException e) {
             log.error("当前sql执行错误\n {} \n, 方法id ::: {}\n 执行sql ::: {}", e.getMessage(), sqlId, sql);
             log.error("sql执行异常", e);
-            throw new IllegalInputException("sql执行异常" + sqlId);
+            throw new RuntimeException("sql执行异常" + sqlId);
         }
     }
 
@@ -523,11 +514,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
-/**
- * @author eleven
- * @date 2023/8/15 14:41
- * @apiNote 基于Mybatis的sql拦截器
- */
+
 @Intercepts(
         {
                 @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
@@ -818,11 +805,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 
-/**
- * @author eleven
- * @date 2023/8/15 14:41
- * @apiNote 基于Mybatis的sql拦截器
- */
+
 @Intercepts(
         {
                 @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
