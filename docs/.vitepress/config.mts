@@ -69,6 +69,10 @@ export default defineConfig({
           {
             text: '导出Word工具类',
             link: '/backend/utils/exportWord'
+          },
+          {
+            text: '自定义权限注解',
+            link: '/backend/utils/permissionControl'
           }
         ]
       }
