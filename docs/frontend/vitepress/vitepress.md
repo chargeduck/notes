@@ -185,3 +185,12 @@ yarn install
 > 在 GitHub 项目的`Settings -> Actions -> General`路径下配置`Fork pull request workflows from outside collaborators`为`Require approval for first-time contributors who are new to GitHub`，
 >
 > 将`Workflow permissions`配置为`Read and write permissions`。
+
+## 3.本地正常上传到github上之后没有样式
+> `config.mts`中忘记添加`base`
+```mts
+export default defineConfig({
+  // 这个要和自己的仓库地址一致
+  base: '/notes/',
+})
+```
