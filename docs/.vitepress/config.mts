@@ -90,27 +90,27 @@ export default defineConfig({
       level: [1, 2]
     },
     search: {
-      provider: 'algolia',
-      options: {
-        appId: 'WREY2TJAEX',
-        apiKey: 'f9da2db9a163ef90f59b268823c3cb9f',
-        indexName: 'chargeDuck',
-        placeholder: '请输入关键词',
-        translations: {
-          button: {
-            buttonText: '搜索',
-            buttonAriaLabel: '搜索'
-          },
-          modal: {
-            searchBox: {
-              resetButtonTitle: '清除查询条件',
-              resetButtonAriaLabel: '清除查询条件',
-              cancelButtonText: '取消',
-              cancelButtonAriaLabel: '取消'
-            }
-          }
-        }
-      }
+      provider: 'local',
+      // options: {
+      //   appId: 'WREY2TJAEX',
+      //   apiKey: 'f9da2db9a163ef90f59b268823c3cb9f',
+      //   indexName: 'chargeDuck',
+      //   placeholder: '请输入关键词',
+      //   translations: {
+      //     button: {
+      //       buttonText: '搜索',
+      //       buttonAriaLabel: '搜索'
+      //     },
+      //     modal: {
+      //       searchBox: {
+      //         resetButtonTitle: '清除查询条件',
+      //         resetButtonAriaLabel: '清除查询条件',
+      //         cancelButtonText: '取消',
+      //         cancelButtonAriaLabel: '取消'
+      //       }
+      //     }
+      //   }
+      // }
     }
   }
 })
