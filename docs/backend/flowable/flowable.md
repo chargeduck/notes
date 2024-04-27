@@ -21,9 +21,27 @@
       <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.36</version>
+    </dependency>
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-log4j12</artifactId>
+        <version>1.7.36</version>
+    </dependency>
   </dependencies>
 ```
-2. 创建测试类
+2. 创建日志文件
+> 在`resource`文件夹下创建`log4j.properties`
+```properties
+log4j.rootLogger=DEBUG, CA
+log4j.appender.CA=org.apache.log4j.ConsoleAppender
+log4j.appender.CA.layout=org.apache.log4j.PatternLayout
+log4j.appender.CA.layout.ConversionPattern= %d{hh:mm:ss,SSS} [%t] %-5p %c %x - %m%n
+```
+3. 创建测试类
 > 启动这个代码之后，会自动在数据库当中创建34张表
 ```java
 package net.lesscoding;
@@ -76,4 +94,3 @@ ProcessEngineConfiguration configuration = new StandaloneProcessEngineConfigurat
                 .setJdbcUsername("root")
                 .setJdbcUrl("jdbc:mysql:///flowable_test?serverTimezone=UTC&nullCatalogMeansCurrent=true");
 ```
-

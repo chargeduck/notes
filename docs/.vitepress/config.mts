@@ -26,6 +26,15 @@ export default defineConfig({
             link: '/backend/nginx/nginx子请求鉴权'
           }
         ]
+      },
+      {
+        text: '服务器',
+        items: [
+          {
+            text: 'Docker',
+            link: '/server/dockerInit'
+          }
+        ]
       }
     ],
 
