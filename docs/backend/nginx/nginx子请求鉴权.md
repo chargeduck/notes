@@ -48,7 +48,7 @@ location /auth-proxy {
 
 **配置后如下, 请确保一致**
 
-```she
+```shell
 location ^~/api/ {
 	proxy_pass  http://hrmw-web-01:8081/api/;
 }

@@ -41,13 +41,10 @@ export default defineConfig({
     sidebar: [
       {
         text: 'Examples',
+        collapsed: true,
         items: [
           { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' },
-          {
-            text: 'Vitepress部署GithubPage',
-            link: '/frontend/vitepress/vitepress'
-          }
+          { text: 'Runtime API Examples', link: '/api-examples' }
         ]
       },
       {
@@ -56,7 +53,25 @@ export default defineConfig({
           {
             text: 'ActiveMq尚硅谷版',
             link: '/backend/mq/activemq_antguigu'
+          },
+          {
+            text: 'RocketMq',
+            items: [
+              {
+                text: '尚硅谷版',
+                link: '/backend/mq/rocketmq_antguigu'
+              },
+              {
+                text: '黑马版',
+                link: '/backend/mq/rocketmq_itcast'
+              },
+              {
+                text: '自己整理',
+                link: '/backend/mq/rocketmq'
+              }
+            ]
           }
+
         ]
       },
       {
@@ -70,7 +85,12 @@ export default defineConfig({
       },
       {
         text: '工具类',
+        collapsed: true,
         items: [
+          {
+            text: 'Vitepress部署GithubPage',
+            link: '/frontend/vitepress/vitepress'
+          },
           {
             text: 'EasyExcel导出工具类，动态合并表头',
             link: '/backend/utils/DynamicMergeHeader'
