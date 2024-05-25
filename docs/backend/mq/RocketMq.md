@@ -14,13 +14,13 @@ MQ，Message Queue，是一种提供消息队列服务的中间件，也称为�
 
 MQ可以将系统的超量请求暂存其中，以便系统后期可以慢慢进行处理，从而避免了请求的丢失或系统被压垮。
 
-![rocket限流](rocketmq_img/1_1_2_1_%E9%99%90%E6%B5%81.png)
+![限流http://upyuncdn.lesscoding.net/1_1_2_1_%E9%99%90%E6%B5%81.png](http://upyuncdn.lesscoding.net/1_1_2_1_%E9%99%90%E6%B5%81.png)
 
 2. 异步解耦
 
 上游系统对下游系统的调用若为同步调用，则会大大降低系统的吞吐量与并发度，且系统耦合度太高。而异步调用则会解决这些问题。所以两层之间若要实现由同步到异步的转化，一般性做法就是，在这两层间添加一个MQ层。
 
-![](rocketmq_img/1_1_2_2_%E8%A7%A3%E8%80%A6.png)
+![解耦http://upyuncdn.lesscoding.net/1_1_2_2_%E8%A7%A3%E8%80%A6.png](http://upyuncdn.lesscoding.net/1_1_2_2_%E8%A7%A3%E8%80%A6.png)
 
 3. 数据收集
 
@@ -108,7 +108,7 @@ RocketMQ中每个消息拥有唯一的MessageId，且可以携带具有业务标
 
 # 2. 系统架构
 
-![](rocketmq_img/2_1_1_rocketmq%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84.png)
+![限流http://upyuncdn.lesscoding.net/1_1_2_1_%E9%99%90%E6%B5%81.png](http://upyuncdn.lesscoding.net/1_1_2_1_%E9%99%90%E6%B5%81.png)
 
 ## 1. Producer
 
@@ -121,11 +121,11 @@ RocketMQ中每个消息拥有唯一的MessageId，且可以携带具有业务标
 >
 > RocketMQ中的消息消费者都是以消费者组（Consumer Group）的形式出现的。消费者组是同一类消费者的集合，这类Consumer消费的是同一Topic类型的消息。消费者组使得在消息消费方面，实现负载均衡（将一个Topic中的不同的Queue平均分配给同一个Consumer Group的不同的Consumer，注意，并不是将消息负载均衡）和容错（一个Consmer挂了，该Consumer Group中的其它Consumer可以接着消费原Consumer消费的Queue）的目标变得非常容易。
 >
-> ![](rocketmq_img/2_1_2_rocketconsumer1.png)
+> ![](http://upyuncdn.lesscoding.net/2_1_2_rocketconsumer1.png)
 >
 > 消费者组中Consumer的数量应该小于等于订阅Topic的Queue数量。如果超出Queue数量，则多出的Consumer将不能消费消息。
 >
-> ![](rocketmq_img/2_1_3_rocketconsumer2.png)
+> ![](http://upyuncdn.lesscoding.net/2_1_3_rocketconsumer2.png)
 >
 > 不过，一个Topic类型的消息可以被多个消费者组同时消费。
 >
@@ -205,7 +205,7 @@ Broker充当着消息中转角色，负责存储消息、转发消息。Broker�
 
 ### 2. 模块构成
 
-![](rocketmq_img/2-4broker%E6%9E%B6%E6%9E%84.png)
+![](http://upyuncdn.lesscoding.net/2-4broker%E6%9E%B6%E6%9E%84.png)
 
 Remoting Module：整个Broker的实体，负责处理来自clients端的请求。而这个Broker实体则由以下模块构成。
 
@@ -219,7 +219,7 @@ Index Service：索引服务。根据特定的Message key，对投递到Broker�
 
 ### 3. 集群部署
 
-![](rocketmq_img/2-5broker%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2.png)
+![](http://upyuncdn.lesscoding.net/2-5broker%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2.png)
 
 为了增强Broker性能与吞吐量，Broker一般都是以集群形式出现的。各集群节点中可能存放着相同Topic的不同Queue。不过，这里有个问题，如果某Broker节点宕机，如何保证数据不丢失呢？其解决方案是，将每个Broker集群节点进行横向扩展，即将Broker节点再建为一个HA集群，解决单点问题。
 
@@ -1087,7 +1087,7 @@ index(m)位置 = 40 + 500w * 4 + (m - 1) * 20
 
 *500w \* 4* 是所有*slots*所占的字节数
 
-![](rocketmq_img/01_queryIndex.png)
+![](http://upyuncdn.lesscoding.net/01_queryIndex.png)
 
 ## 4. 消息的消费
 
@@ -1201,27 +1201,24 @@ Kafka中的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance�
 
 #### 1. 平均分配策略
 
-![Queue分配算法](rocketmq_img/6_4_4_1_queue%E5%88%86%E9%85%8D%E7%AE%97%E6%B3%95.png)
+![Queue分配算法](http://upyuncdn.lesscoding.net/6_4_4_1_queue%E5%88%86%E9%85%8D%E7%AE%97%E6%B3%95.png)
 
 该算法是要根据<font color=blue>avg = QueueCount / ConsumerCount</font> 的计算结果进行分配的。如果能够整除，则按顺序将avg个Queue逐个分配Consumer；如果不能整除，则将多余出的Queue按照Consumer顺序逐个分配。
 
 该算法即，先计算好每个*Consumer*应该分得几个*Queue*，然后再依次将这些数量的*Queue*逐个分配个*Consumer*。
 
 #### 2. 环形平均策略
-
-![Queue环形分配算法](rocketmq_img/6_4_4_2_queue%E7%8E%AF%E5%BD%A2%E5%B9%B3%E5%9D%87%E7%AE%97%E6%B3%95.png)
+![Queue环形分配算法](http://upyuncdn.lesscoding.net/6_4_4_2_queue%E7%8E%AF%E5%BD%A2%E5%B9%B3%E5%9D%87%E7%AE%97%E6%B3%95.png)
 
 环形平均算法是指，根据消费者的顺序，依次在由queue队列组成的环形图中逐个分配。该算法不用事先计算每个*Consumer*需要分配几个*Queue*，直接一个一个分即可。
 
 #### 3. 一致性Hash策略
-
-![一致性hash策略](rocketmq_img/6_4_4_3_Queue%E4%B8%80%E8%87%B4%E6%80%A7hash.png)
+![一致性hash策略](http://upyuncdn.lesscoding.net/6_4_4_3_Queue%E4%B8%80%E8%87%B4%E6%80%A7hash.png)
 
 该算法会将consumer的hash值作为Node节点存放到hash环上，然后将queue的hash值也放到hash环上，通过顺时针方向，距离queue最近的那个consumer就是该queue要分配的consumer。**<font color=red>该算法存在的问题：分配不均。</font>**
 
 #### 4. 同机房策略
-
-![同机房策略](rocketmq_img/6_4_4_4_%E5%90%8C%E6%9C%BA%E6%88%BF%E7%AD%96%E7%95%A5.png)
+![同机房策略](http://upyuncdn.lesscoding.net/6_4_4_4_%E5%90%8C%E6%9C%BA%E6%88%BF%E7%AD%96%E7%95%A5.png)
 
 该算法会根据queue的部署机房位置和consumer的位置，过滤出当前consumer相同机房的queue。然后按照平均分配策略或环形平均策略对同机房queue进行分配。如果没有同机房queue，则按照平均分配策略或环形平均策略对所有queue进行分配。
 
@@ -1235,7 +1232,7 @@ Kafka中的Rebalance是由Consumer Leader完成的。而RocketMQ中的Rebalance�
 
 其可以有效减少由于消费者组扩容或缩容所带来的大量的Rebalance。
 
-![Rebalance对比](rocketmq_img/6_4_4_5_Rebalance%E5%AF%B9%E6%AF%94.png)
+![Rebalance对比](http://upyuncdn.lesscoding.net/6_4_4_5_Rebalance%E5%AF%B9%E6%AF%94.png)
 
 ### 5. 至少一次原则
 
@@ -1256,14 +1253,12 @@ RocketMQ有一个原则：每条消息必须要被成功消费一次。
 ### 1. 正确订阅关系
 
 多个消费者组订阅了多个Topic，并且每个消费者组里的多个消费者实例的订阅关系保持了一致。
-
-![正确订阅关系](rocketmq_img/6_5_1_%E6%AD%A3%E7%A1%AE%E8%AE%A2%E9%98%85%E5%85%B3%E7%B3%BB.png)
+![正确订阅关系](http://upyuncdn.lesscoding.net/6_5_1_%E6%AD%A3%E7%A1%AE%E8%AE%A2%E9%98%85%E5%85%B3%E7%B3%BB.png)
 
 ### 2. 错误订阅关系
 
 一个消费者组订阅了多个Topic，但是该消费者组里的多个Consumer实例的订阅关系并没有保持一致。
-
-![错误订阅关系](rocketmq_img/6_5_2_%E9%94%99%E8%AF%AF%E8%AE%A2%E9%98%85%E5%85%B3%E7%B3%BB.png)
+![错误订阅关系](http://upyuncdn.lesscoding.net/6_5_2_%E9%94%99%E8%AF%AF%E8%AE%A2%E9%98%85%E5%85%B3%E7%B3%BB.png)
 
 #### 1. 订阅了不同Topic
 
