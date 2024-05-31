@@ -1925,7 +1925,11 @@ public class OnewayProducer {
 > 一种是没有开放端口
 >
 > ```shell
+> # 开放10911端口
 > firewall-cmd --zone=public --add-port=10911/tcp --permanent
+> firewall-cmd --zone=public --add-port=9876/tcp --permanent
+> # 查看有哪些端口开放
+> firewall-cmd --zone=public --list-ports
 > systemctl restart firewalld
 > ```
 >
@@ -2374,3 +2378,213 @@ XA模式是一个典型的2PC，其执行原理如下
   
 
 ### 7. 代码举例
+
+1. 定义工行监听器
+
+```java
+package net.lesscoding.listener;
+
+import cn.hutool.core.util.StrUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.validator.Msg;
+import org.apache.rocketmq.client.producer.LocalTransactionState;
+import org.apache.rocketmq.client.producer.TransactionListener;
+import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageExt;
+
+/**
+ * @author eleven
+ * @date 2024/5/30 21:59
+ * @apiNote
+ */
+public class ICBCTransactionListener implements TransactionListener {
+
+    /**
+     * 回调操作
+     * <br/>
+     * 消息提交承购就会触发此方法的执行，用于完成本地事务
+     *
+     * @param message 消息
+     * @param o       业务参数
+     * @return LocalTransactionState
+     */
+    @Override
+    public LocalTransactionState executeLocalTransaction(Message message, Object o) {
+        System.out.println("预提交消息成功" + message);
+        String tags = message.getTags();
+        if (StrUtil.equals("TAG-A", tags)) {
+            return LocalTransactionState.COMMIT_MESSAGE;
+        }
+
+        if (StrUtil.equals("TAG-B", tags)) {
+            return LocalTransactionState.ROLLBACK_MESSAGE;
+        }
+        return LocalTransactionState.UNKNOW;
+    }
+
+    /**
+     * 消息回查方法
+     * <br/>
+     * 常见的引发消息回查的原因有两个
+     * 1. 回调操作返回了UNKNOW
+     * 2. TC没有收到TM的最终全局事务确认指令
+     *
+     * @param messageExt 消息
+     * @return LocalTransactionState
+     */
+    @Override
+    public LocalTransactionState checkLocalTransaction(MessageExt messageExt) {
+        System.out.println(StrUtil.format("执行消息回查{}\n数据{}", messageExt.getTags(), messageExt));
+        return LocalTransactionState.COMMIT_MESSAGE;
+    }
+}
+```
+
+2. 定义事务生产者
+
+```java
+package net.lesscoding.producer;
+
+import net.lesscoding.common.Const;
+import net.lesscoding.listener.ICBCTransactionListener;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.client.producer.TransactionMQProducer;
+import org.apache.rocketmq.client.producer.TransactionSendResult;
+import org.apache.rocketmq.common.message.Message;
+
+import java.util.concurrent.*;
+
+/**
+ * @author eleven
+ * @date 2024/5/30 21:37
+ * @apiNote
+ */
+public class TransactionProducer {
+    public static void main(String[] args) throws MQClientException {
+        TransactionMQProducer producer = new TransactionMQProducer("tpg");
+        producer.setNamesrvAddr(Const.JG_NAME_SRV_ADDRESS_OS1);
+
+        /**
+         * @param corePoolSize:     线程池中核心线程的数量
+         * @param maximumPoolNum：   线程池最大线程数
+         * @param keepAliveTime：    存活时间
+         * @param unit：             存活时间的单位
+         * @param workQueue：        临时存放任务的队列，参数就是队列的长度
+         * @param threadFactory：    线程工厂
+         */
+        ExecutorService executorService = new ThreadPoolExecutor(2, 5, 100, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(5), new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread thread = new Thread(r);
+                thread.setName("client-transaction-msg-check-thread");
+                return thread;
+            }
+        });
+
+        producer.setExecutorService(executorService);
+        // 添加事务监听器
+        producer.setTransactionListener(new ICBCTransactionListener());
+        producer.setSendMsgTimeout(Const.MSG_TIME_OUT);
+        producer.start();
+
+        String[] tags = {"TAG-A", "TAG-B", "TAG-C"};
+
+        for (int i = 0; i < 3; i++) {
+            byte[] body = ("Hi," + i).getBytes();
+            Message msg = new Message("TransactionTopic", tags[i], body);
+            // 发送事务消息
+            // 第二个参数用于指定在执行本地事务是需要使用的自定义业务参数
+            TransactionSendResult sendResult = producer.sendMessageInTransaction(msg, null);
+            System.out.println("发送结果" + sendResult.getSendStatus());
+        }
+    }
+}
+```
+
+3. 定义事务消费者
+
+```java
+package net.lesscoding.consumer;
+
+import net.lesscoding.common.Const;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
+import org.apache.rocketmq.common.message.MessageExt;
+
+import java.util.List;
+
+/**
+ * @author eleven
+ * @date 2024/5/31 22:58
+ * @apiNote
+ */
+public class TransactionConsumer {
+    public static void main(String[] args) throws MQClientException {
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("tgp");
+        consumer.setNamesrvAddr(Const.JG_NAME_SRV_ADDRESS_OS1);
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer.subscribe("TransactionTopic", "*");
+        consumer.registerMessageListener(new MessageListenerConcurrently() {
+            @Override
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> list, ConsumeConcurrentlyContext consumeConcurrentlyContext) {
+                for (MessageExt msg : list) {
+                    System.out.println(msg);
+                }
+                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            }
+        });
+
+        consumer.start();
+        System.out.println("TransactionConsumer Started!");
+    }
+}
+```
+
+## 5. 批量消息
+
+### 1. 批量发送消息
+
+#### 1. 发送限制
+
+生产者进行消息发送时可以一次发送多条消息，这可以大大提升Producer的发送效率，不过需要注意以下几点
+
+- 必须是相同的Topic
+- 必须是相同的刷盘策略
+- 不能是延时消息或者是事务消息
+
+#### 2.  批量发送大小
+
+默认情况下，一批发送的消息总大小不能超过4Mb，如果想要超出这个值。有两种方案。
+
+1. 将批量消息进行拆分，拆分成若干个不大于4Mb的消息集合分批次批量发送
+2. 在Producer和Broker修改属性
+   - Producer段需要再发送之前设置maxMessageSize属性
+   - Broker需要修改加载的配置文件中的maxMessageSize属性
+
+#### 3. 生产者发送的消息
+
+```mermaid
+flowchart LR
+A[Topic] --> B[Body]
+B --> C[Log 20字节]
+C --> D[Properties]
+
+
+
+```
+
+生产者通过`send()`方法发送的`Message`，并不是直接将`Message`序列化之后发送的，而是通过`Message`生成了一个字符串之后发送出去的。
+
+这个字符串由四部分组成，`Topic`，`消息Body`,`消息日志`（占用20字节）,以及一堆用来描述消息输赢的key-value（`properties`）。
+
+这个`properties`中包含了 生产者地址，生产时间，要发送的QueueId等，最终写入Broker消息单元中的数据都是来源自这个数据
+
+## 2. 批量消费消息
+
+
+
