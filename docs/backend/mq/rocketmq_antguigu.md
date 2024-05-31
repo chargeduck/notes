@@ -2,7 +2,7 @@
 
 > 笔记来源: [尚硅谷Mq视频](https://www.bilibili.com/video/BV1cf4y157sz)
 >
-> https://www.bilibili.com/video/BV1cf4y157sz/?p=86
+> https://www.bilibili.com/video/BV1cf4y157sz/?p=90&spm_id_from=pageDriver&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b
 
 ## 1. Mq概述
 
@@ -2222,3 +2222,155 @@ public class DelayProducer {
 
 ### 1. 问题引入
 
+1. 工行系统发送一个给B增款1万元的同步消息M给Broker
+2. 消息被Broker成功接收后，向工行系统发送成功ACK
+3. 工行系统收到成功ACK后从用户A中扣款1万元
+4. 建行系统从Broker中获取到消息M
+5. 建行系统消费消息M，即向用户B中增加1万元
+
+> 这其中存在问题，如果第三步中的扣款操作失败，但是消息已经发送成功了，对于Mq来说，只要消息写入之后，这个消息就可以被消费者消费。
+>
+> 就会导致数据不一致的问题。
+
+### 2. 解决思路
+
+让1、2、3存在原子性，如果有一步失败则全部都回滚，使用<font color=blue>事务消息</font>，使用<font color=blue>分布式事务</font>解决。相应的概念可以参考Spring Cloud Seata。
+
+![image-20240527215301296](http://upyuncdn.lesscoding.net/image-20240527215301296.png)
+
+事务处理的流程
+
+1. 事务管理器TM想事务协调器TC发起指令，开启全局事务
+
+2. 工行系统发送一个给B存款1万的事务消息M给TC
+
+3. TC会向Broker发送半事务消息`prepareHalf`，将消息M预提交到Broker。此时的建行系统是看不到Broker中的消息M的
+
+4. Broker会将预提交执行结果Report给TC。
+
+5. 如果预提交失败，则TC会向TM发送消息M提交失败的响应，全局事务结束;如果预提交成功，TC会调用工行系统的回调操作，去完成工行用户A的预扣款1万元的操作
+
+6. 工行系统会向TC发送预扣款执行结果，即本地事务的执行状态
+
+7. TC收到预扣款执行结果后，会将结果上报给TM。
+
+   > 存在三种结果
+   >
+   > COMMIT_MESSAGE: 本地事务执行成功
+   >
+   > ROLLBACK_MESSAGE：本地事务执行失败
+   >
+   > UNKONW： 不确定，表示需要进行回查以确定本地事务的执行结果
+
+8. TM会根据上报结果向TC发出不同的确认指令
+
+   - 若预扣款成功(本地事务状态为COMMITMESSAGE)，则TM向TC发送GlobalCommit指令
+
+   - 若预扣款失败(本地事务状态为ROLLBACK MESSAGE)，则TM向TC发送GlobalRollback指令
+
+   - 若未知状态(本地事务状态为UNKNOWN)，则会触发工行系统的本地事务状态回查操作。回查操作会将回查结果，即`COMMIT_MESSAGE`或`ROLLBACK_MESSAGE` Report给TC。TC将结果上报给TM，TM会再向TC发送最终确认指令`GlobalCommit`或`Global Rollback`
+
+9. TC在接收到指令后回向Broker和工行系统发出确认指令
+
+	> TC接受的若是Global Commit指令，则向Broker与工行系统发送Branch Commit执行，此时Broker中的消息M才可以被建行系统看到，此时工行系统用户A的扣款操作才真正被确认。
+	>
+	> 
+	>
+	> TC接受到的若是Global Rollback执行，则向Broker与工行系统发送Branch Rollback指令，此时Broker中的消息M江北撤销，工行用户A中的扣款操作被回滚。
+	
+
+以上方案就是为了确保`消息投递`和`扣款操作`能够在一个事务中，要成功都成功，有一个失败则全部回滚
+
+### 3 基础
+
+#### 1. 分布式事务
+
+对于分布式事务，通俗地说就是，一次操作由若干分支操作组成，这些分支操作分属不同应用，分布在不同服务器上。分布式事务需要保证这些分支操作要么全部成功，要么全部失败。分布式事务与普通事务样，就是为了保证操作结果的一致性。
+
+#### 2. 事务消息
+
+RocketMO提供了类似X/0pen XA的分布式事务功能，通过事务消息能达到分布式事务的最终一致。XA是一种分布式事务解决方案，一种分布式事务处理模式。
+
+#### 3. 半事务消息
+
+暂不能投递的消息，发送方已经成功地将消息发送到了Broker，但是Broker未收到最终确认指令，此时该消息被标记成“暂不能投递”状态，即不能被消费者看到。处于该种状态下的消息即半事务消息。
+
+#### 4. 本地事务状态
+
+Producer回调操作执行的结果为本地事务状态，其会发送给TC，而TC会再发送给TM。TM会根据TC发送来的本地事务状态来决定全局事务确认指令。
+
+#### 5. 消息回查
+
+![image-20240530125336214](https://upyuncdn.lesscoding.net/image-20240530125336214.png)
+
+消息回查，即重新查询本地事务的执行状态，本里就是重新到DB中查询预扣款操作是否执行成功。
+
+> <font color=red>注意：</font>消息回查不是重新执行回调操作，回调操作时进行预扣操作，而消息回查则是查看预扣款操作执行的结果
+>
+> 引发消息回查的原因常见的有两个
+>
+> 1. 回调操作返回UNKOWN
+> 2. TC没有收到TM的最终全局事务确认指令
+
+#### 6. RocketMq中的消息回查设置
+
+关于消息回查，有三个常见的属性设置，他们在Broker中加载的配置文件贺总的配置如下
+
+- transactionTimeout=20, 指定TM在20秒内应将最终确认状态发送给TC，否则引发消息回查，默认为60S
+- transactionCheckMax=5, 指定最多回查5次，超过后将丢弃消息并记录错误日志，默认15次
+- transactionCheckInterval=10，指定设置的多次消息回查的时间间隔为10s，默认为60s 
+
+### 4. XA模式介绍
+
+#### 1. XA协议
+
+XA(Unix Transaction)是一种分布式事务解决方案，一种分布式事务处理模式，是基于XA协议的。XA协议由Tuxedo (Transaction for Unix has been Extended for Distributed Operation,分布式操作扩展之后的Unix事务系统)首先提出的，并交给X/0pen组织，作为资源管理器与事务管理器的接口标准。
+
+XA模式中有三个重要组件:TC、TM、RM。
+
+#### 2. TC
+
+Transaction Coordinator，事务协调者。维护全局和分支事务的状态，驱动全局事务提交或回滚。
+
+> 在RocketMq中Broker充当着TC的角色
+
+#### 3. TM
+
+Transaction Manager，事务管理器。定义全局事务的范围:开始全局事务、提交或回滚全局事务。它实际是全局事务的发起者。
+
+> RocketMq中的事务消息由Producer充当TM
+
+#### 4. RM
+
+Resource Manager，资源管理器。管理分支事务处理的资源，与TC交谈以注册分支事务和报告分支事务的状态，并驱动分支事务提交或回滚。
+
+> RocketMq中事务消息的Producer以及Broker都是RM
+
+### 5. RM
+
+![image-20240530132714945](http://upyuncdn.lesscoding.net/image-20240530132714945.png)
+
+XA模式是一个典型的2PC，其执行原理如下
+
+1. TM向TC发起指令，开启一个全局事务。
+2. 根据业务要求，各个RM会逐个向TC注册分支事务，然后TC会逐个向RM发出预执行指令。
+3. 各个RM在接收到指令后会在进行本地事务预执行。
+4. RM将预执行结果Report给TC。当然，这个结果可能是成功，也可能是失败
+
+5. TC在接收到各个RM的Report后会将汇总结果上报给TM，根据汇总结果TM会向TC发出确认指令。
+
+  - 若所有的结果都是成功响应，则向TC发送Global Commit指令
+  - 只要有结果是失败响应，则向TC发送Global Rollback指令
+6. TC在接收到指令后再次向RM发送确认指令
+
+	> 事务消息方案并不是一个典型的XA模式，因为XA模式中的分支事务是异步的，而事务消息方案中的消息预提交与预扣款操作间是同步的
+
+### 6. 注意
+
+- 事务消息不支持延时消息
+
+- 对于事务消息要做好幂等性检查，因为事务消息可能不止一次被消费（因为存在回滚后在提交的情况）
+
+  
+
+### 7. 代码举例
