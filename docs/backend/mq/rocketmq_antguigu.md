@@ -2,7 +2,7 @@
 
 > 笔记来源: [尚硅谷Mq视频](https://www.bilibili.com/video/BV1cf4y157sz)
 >
-> https://www.bilibili.com/video/BV1cf4y157sz/?p=90&spm_id_from=pageDriver&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b
+> https://www.bilibili.com/video/BV1cf4y157sz/?p=98
 
 ## 1. Mq概述
 
@@ -1737,20 +1737,6 @@ p -->> mq: 3.发送消息3
 #### 2.2 同步发送消息
 
 ```java
-package net.lesscoding.general;
-
-import org.apache.rocketmq.client.exception.MQBrokerException;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.remoting.exception.RemotingException;
-
-/**
- * @author eleven
- * @date 2023/10/8 20:57
- * @apiNote
- */
 public class SyncProducer {
     public static void main(String[] args) throws MQClientException, MQBrokerException, RemotingException, InterruptedException {
         // - 创建消息生产者Producer，并指定生产者组名
@@ -1780,20 +1766,6 @@ public class SyncProducer {
 #### 2.3 异步发送消息
 
 ```java
-package net.lesscoding.general;
-
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.SendCallback;
-import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.common.message.Message;
-
-import java.util.concurrent.TimeUnit;
-
-/**
- * @author eleven
- * @date 2023/9/5 22:29
- * @apiNote 异步消息发送者
- */
 public class AsyncProducer {
     public static void main(String[] args) throws Exception {
         // - 创建消息生产者Producer，并指定生产者组名
@@ -1854,18 +1826,6 @@ SendResult [sendStatus=SEND_OK, msgId=7F000001791018B4AAC2288020960009, offsetMs
 #### 2.4 单向发送消息
 
 ```java
-package net.lesscoding.general;
-
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.remoting.exception.RemotingException;
-
-/**
- * @author eleven
- * @date 2023/10/10 22:28
- * @apiNote 单向消息发送示例
- */
 public class OnewayProducer {
     public static void main(String[] args) throws RemotingException, InterruptedException, MQClientException {
         DefaultMQProducer producer = new DefaultMQProducer("pg");
@@ -1937,25 +1897,6 @@ public class OnewayProducer {
 #### 2.6 消费者消费消息
 
 ```java
-package net.lesscoding.consumer;
-
-import org.apache.rocketmq.client.consumer.DefaultLitePullConsumer;
-import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
-import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
-import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
-import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
-
-import java.util.List;
-
-/**
- * @author eleven
- * @date 2023/10/10 22:35
- * @apiNote 消费者
- */
 public class SomeSonConsumer {
     public static void main(String[] args) throws MQClientException {
         // 定义一个pull消费者
@@ -2063,22 +2004,6 @@ public class SomeSonConsumer {
 ### 4. 代码举例
 
 ```java
-package net.lesscoding.producer;
-
-import net.lesscoding.common.Const;
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.MessageQueueSelector;
-import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.common.message.MessageQueue;
-
-import java.util.List;
-
-/**
- * @author eleven
- * @date 2023/10/16 22:00
- * @apiNote 顺序消息生产者
- */
 public class OrderProducer {
     public static void main(String[] args) throws Exception {
         DefaultMQProducer producer = new DefaultMQProducer("pg");
@@ -2186,21 +2111,6 @@ Broker内部有一个延迟消息服务类，其会消费SCHEDULE TOPIC XXXX中�
 ### 4. 代码举例
 
 ```java
-package net.lesscoding.producer;
-
-import net.lesscoding.common.Const;
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.SendResult;
-import org.apache.rocketmq.common.message.Message;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-/**
- * @author eleven
- * @date 2023/10/18 22:37
- * @apiNote 延迟发送
- */
 public class DelayProducer {
     public static void main(String[] args) throws Exception {
         DefaultMQProducer producer = new DefaultMQProducer("pg");
@@ -2382,21 +2292,6 @@ XA模式是一个典型的2PC，其执行原理如下
 1. 定义工行监听器
 
 ```java
-package net.lesscoding.listener;
-
-import cn.hutool.core.util.StrUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.validator.Msg;
-import org.apache.rocketmq.client.producer.LocalTransactionState;
-import org.apache.rocketmq.client.producer.TransactionListener;
-import org.apache.rocketmq.common.message.Message;
-import org.apache.rocketmq.common.message.MessageExt;
-
-/**
- * @author eleven
- * @date 2024/5/30 21:59
- * @apiNote
- */
 public class ICBCTransactionListener implements TransactionListener {
 
     /**
@@ -2443,22 +2338,6 @@ public class ICBCTransactionListener implements TransactionListener {
 2. 定义事务生产者
 
 ```java
-package net.lesscoding.producer;
-
-import net.lesscoding.common.Const;
-import net.lesscoding.listener.ICBCTransactionListener;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.client.producer.TransactionMQProducer;
-import org.apache.rocketmq.client.producer.TransactionSendResult;
-import org.apache.rocketmq.common.message.Message;
-
-import java.util.concurrent.*;
-
-/**
- * @author eleven
- * @date 2024/5/30 21:37
- * @apiNote
- */
 public class TransactionProducer {
     public static void main(String[] args) throws MQClientException {
         TransactionMQProducer producer = new TransactionMQProducer("tpg");
@@ -2505,24 +2384,6 @@ public class TransactionProducer {
 3. 定义事务消费者
 
 ```java
-package net.lesscoding.consumer;
-
-import net.lesscoding.common.Const;
-import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
-import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
-import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
-import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
-import org.apache.rocketmq.client.exception.MQClientException;
-import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
-import org.apache.rocketmq.common.message.MessageExt;
-
-import java.util.List;
-
-/**
- * @author eleven
- * @date 2024/5/31 22:58
- * @apiNote
- */
 public class TransactionConsumer {
     public static void main(String[] args) throws MQClientException {
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("tgp");
@@ -2584,7 +2445,465 @@ C --> D[Properties]
 
 这个`properties`中包含了 生产者地址，生产时间，要发送的QueueId等，最终写入Broker消息单元中的数据都是来源自这个数据
 
-## 2. 批量消费消息
+### 2. 批量消费消息
+
+```java
+// 注册消息监听器
+pushConsumer.registerMessageListener(new MessageListenerConcurrently() {
+    /**
+             * 一单broker中有了其订阅的消息就会触发该方法的执行
+             * 其返回值为当前consumer消费的状态
+             * @param msgList                       消息列表
+             * @param consumeConcurrentlyContext
+             * @return
+             */
+    @Override
+    public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgList, ConsumeConcurrentlyContext consumeConcurrentlyContext) {
+        for (MessageExt msg : msgList) {
+            System.out.println(msg);
+        }
+        return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+    }
+});
+```
 
 
 
+Consumer的MessageListenerConcurrently监听接口的consumerMessage()方法的第一个参数为消息列表，但是默认情况下每次只能消费一条消息，若要使其一次可以消费多条消息，则可以通过修改Consumer的consumerMessageBatchMaxSize属性来制定，不过也不能超过32，因为默认情况下消费者每次可以拉取的消息最多是32条，若要修改一次性拉取的最大值，则可通过修改Consumer的pullBatchSize属性来制定
+
+#### 1. 存在的问题
+
+Consumer的pullBatchSize属性和consumeMessageBatchMaxSize属性是否设置的越大越好？
+
+- pullBatchSize设置的越大，consumer每次拉取一次需要的时间就越长，且在网络传输出现问题的可能性就越高，若在拉取过程中出现了问题，则本批次所有的消息都需要重新拉取一次。
+
+- consumerMessageBatchMaxSize设置的越大，consumer的消息并发能力就越低。切这品被消费的消息具有相同的消费结果。 因为这个属性制定的一次消息只会使用一个线程进行处理，且在处理过程中只要有一个消息处理异常，则这批消息都需要重新在进行消费处理。
+
+  
+
+### 3. 代码举例
+
+#### 1. 定义消息分割器
+
+```java
+public class MessageListSplitter implements Iterator<List<Message>> {
+    // 批次最大大小
+    private final int SIZE_LIMIT = 4 * 1024 * 1024;
+
+    private  final List<Message> list;
+
+    private int currentIndex;
+
+    public MessageListSplitter(List<Message> list) {
+        this.list = list;
+    }
+
+
+    @Override
+    public boolean hasNext() {
+        return currentIndex < list.size();
+    }
+
+    /**
+     * 有时间可以修改一下。
+     * 这里如果单挑消息超过4M的话，会被抛弃掉
+     * @return
+     */
+    @Override
+    public List<Message> next() {
+        int nextIndex = currentIndex;
+        int totalSize = 0;
+        for (; nextIndex < list.size(); nextIndex++) {
+            Message message = list.get(nextIndex);
+            int tmpSize = message.getTopic().length() + message.getBody().length;
+            Map<String, String> properties = message.getProperties();
+
+            for (Map.Entry<String, String> entry : properties.entrySet()) {
+                tmpSize += entry.getKey().length() + entry.getValue().length();
+            }
+            tmpSize += 20;
+            if (tmpSize > SIZE_LIMIT) {
+                if (nextIndex - currentIndex == 0) {
+                    nextIndex++;
+                }
+                break;
+            }
+
+            if (tmpSize + totalSize > SIZE_LIMIT) {
+                break;
+            } else {
+                totalSize += tmpSize;
+            }
+        }
+        // [currentIndex, nextIndex)
+        List<Message> messages = list.subList(currentIndex, nextIndex);
+        currentIndex = nextIndex;
+        return messages;
+    }
+
+    private Integer messageLength(Message message) {
+        // Message 由 Topic，Body，Log ，Properties 组成 其中Log的长度是20
+        int size = 20;
+        size += message.getTopic().length();
+        size += message.getBody().length;
+        Map<String, String> properties = message.getProperties();
+        if (CollUtil.isNotEmpty(properties)) {
+            for (Map.Entry<String, String> entry : properties.entrySet()) {
+                size += entry.getValue().length() + entry.getKey().length();
+            }
+        }
+        return size;
+    }
+}
+```
+
+#### 2.  批量消息生产者
+
+```java
+public class BatchProducer {
+    public static void main(String[] args) throws MQClientException {
+        DefaultMQProducer producer = new DefaultMQProducer("pg");
+        producer.setNamesrvAddr(Const.TS_NAME_SRV_ADDR_OS1);
+        /**
+         * 指定要发送的消息最大大小，默认为4M
+         * 不过仅修改这个属性是不行的，还需要同时修改broker加载的配置文件中的
+         * maxMessageSize属性值
+         */
+        producer.setMaxMessageSize(4 * 1024 * 1024);
+        producer.start();
+
+        List<Message> msgList = new ArrayList<>();
+        Message msg = null;
+        for (int i = 0; i < 100; i++) {
+            byte[] body = ("Hi," + i).getBytes();
+            msg = new Message("BatchTopic", "BatchTag", body);
+            msgList.add(msg);
+        }
+
+        MessageListSplitter splitter = new MessageListSplitter(msgList);
+        while (splitter.hasNext()) {
+            try {
+                List<Message> listItem = splitter.next();
+                producer.send(listItem);
+              	listItem.forEach(System.out::println);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        producer.shutdown();
+    }
+}
+```
+
+
+
+#### 3. 批量消息消费者
+
+```java
+public class BatchConsumer {
+    public static void main(String[] args) throws MQClientException {
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("cg");
+        consumer.setNamesrvAddr(Const.TS_NAME_SRV_ADDR_OS1);
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer.subscribe("BatchTopic", "*");
+        // 指定每次可以消费10条消息，默认为1
+        consumer.setConsumeMessageBatchMaxSize(10);
+        // 指定每次拉取40条消息, 默认是32
+        consumer.setPullBatchSize(40);
+        consumer.registerMessageListener(
+                (MessageListenerConcurrently) (msgs, context) -> {
+                    for (MessageExt msg : msgs) {
+                        System.out.println(msg);
+                    }
+                    return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+                });
+        consumer.start();
+        System.out.println("Consumer Started!");
+    }
+}
+```
+
+## 6. 消息过滤
+
+消费者在进行消息订阅时，除了可以指定要订阅消息的Topic外，还可以对制定Topic中的消息根据指定条件进行过滤，即可以订阅比Topic更加细粒度的消息类型
+
+对于制定的Topic消息的过滤方式有两种 `Tag过滤`和`SQL过滤`
+
+### 1. Tag过滤
+
+通过consumer的subscirbe()方法制定要订阅的消息的Tag，如果订阅多个Tag的消息，Tag间使用或运算符链接
+
+```java
+DefaultMqPushConsumer consumer = new DeafultMQPushConsumer("tagFilter");
+consumer.subscribe("Tag-Filter", "Tag-A || Tag-B || Tag-C");
+```
+
+### 2. SQL过滤
+
+sql过滤是一种通过特定表达式对事先埋入消息中的`用户属性`进行筛选过滤的方式，通过SQL过滤可以实现对消息的复杂过滤，不过只有使用<font color=red>PUSH模式</font>的消费者才能使用SQL过滤
+
+### 3. 代码举例
+
+#### 1. tag过滤生产者
+
+```java
+public class FilterByTagProducer {
+    public static void main(String[] args) throws Exception {
+        DefaultMQProducer producer = new DefaultMQProducer("pg");
+        producer.setNamesrvAddr(Const.TS_NAME_SRV_ADDR_OS1);
+        producer.start();
+
+        String[] tags = {"Tag-A", "Tag-B", "Tag-C"};
+        for (int i = 0; i < 10; i++) {
+            byte[] body = ("Hi," + i).getBytes();
+            String tag = tags[i % tags.length];
+            Message msg = new Message("filterByTagTopic", tag, body);
+            System.out.println(producer.send(msg));
+        }
+        producer.shutdown();
+    }
+}
+```
+
+#### 2. tag过滤消费者
+
+```java
+public class FilterByTagConsumer {
+    public static void main(String[] args) throws MQClientException {
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("cg");
+        consumer.setNamesrvAddr(Const.TS_NAME_SRV_ADDR_OS1);
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        consumer.subscribe("filterByTagTopic", "Tag-A || Tag-C");
+        consumer.registerMessageListener(new MessageListenerConcurrently() {
+            @Override
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+                for (MessageExt msg : msgs) {
+                    System.out.println(StrUtil.format("{}:{}", msg.getTags(), msg.getBody()));
+                }
+                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            }
+        });
+        consumer.start();
+    }
+}
+```
+
+#### 3. sql过滤生产者
+
+```java
+public class FilterBySQLProducer {
+    public static void main(String[] args) throws Exception {
+        DefaultMQProducer producer = new DefaultMQProducer("pg");
+        producer.setNamesrvAddr(Const.TS_NAME_SRV_ADDR_OS1);
+        producer.start();
+
+        String[] tags = {"Tag-A", "Tag-B", "Tag-C"};
+        for (int i = 0; i < 10; i++) {
+            try {
+                byte[] body = ("Hi," + i).getBytes();
+                String tag = tags[i % tags.length];
+                Message msg = new Message("filterBySqlTopic", tag, body);
+                // 添加用户自定义属性
+                msg.putUserProperty("age", i + "");
+                System.out.println(producer.send(msg));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        producer.shutdown();
+    }
+}
+```
+
+#### 4. sql过滤消费者
+
+```java
+public class FilterBySQLConsumer {
+    public static void main(String[] args) throws Exception {
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("cg");
+        consumer.setNamesrvAddr(Const.TS_NAME_SRV_ADDR_OS1);
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
+        // 从topic中过滤出age在0-6之间的数据
+        consumer.subscribe("filterBySqlTopic", MessageSelector.bySql("age <=6 and age >= 0"));
+        consumer.registerMessageListener(
+                (MessageListenerConcurrently) (msgs, context) -> {
+                    msgs.forEach(System.out::println);
+                    return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+                });
+        consumer.start();
+    }
+}
+```
+
+#### 5. 遇到的问题
+
+1. Exception in thread "main" org.apache.rocketmq.client.exception.MQClientException: CODE: 1  DESC: The broker does not support consumer to filter message by SQL92
+
+> 问题原因：conf文件中未开启sql过滤查询，之后重启就行了
+
+```ini
+enablePropertyFilter=true
+```
+
+如果是集群部署的话，需要都修改
+
+## 7. 消息发送重试机制
+
+### 1. 说明
+
+Producer对发送失败的消息进行重新发送的机制，称为消息发送重试机制，也称为消息重投机制。
+
+对于消息重投，需要注意以下几点:
+
+- 生产者在发送消息时，若采用同步或异步发送方式，发送失败会重试，但oneway消息发送方式发送失败是没有重试机制的
+- 只有普通消息具有发送重试机制，顺序消息是没有的
+- 消息重投机制可以保证消息尽可能发送成功、不丢失，但可能会造成消息重复。消息重复在RocketMO中是无法避免的问题
+- 消息重复在一般情况下不会发生，当出现消息量大、网络抖动，消息重复就会成为大概率事件。producer主动重发、consumer负载变化（<font color=blue>发生rebalance，不会导致消息重复，但可能会出现重复消费</font>）也会导致重复消息
+- 消息重复无法避免，但要避免消息的重复消费。
+- 避免消息重复消费的解决方案是，为消息添加唯一标识，使消费者对消息进行消费判断来避免重复消费
+- 消息发送重试有三种策略可以选择:同步发送失败策略、异步发送失败策略、消息刷盘失败策略
+
+### 2. 同步发送失败策略
+
+对于普通消息，消息发送默认采用round-robin策略来选择所发送到的队列。如果发送失败，默认重试2次。但在重试时是不会选择上次发送失败的Broker，而是选择其它Broker。
+
+<font color=blue>如果只有一个Broker，会尽量发送到该Broker的其他Queue上，因此顺序消息无法重试</font>
+
+```java
+// 设置同步发送失败时重试的次数，默认为2次
+producer.setRetryTimesWhenSendFailed(3)
+```
+
+
+
+同时，Broker还具有`失败隔离`功能，使Producer尽量选择未发生过发送失败的Broker作为目标Broker。其可以保证其他消息尽量不发送到问题Broker。为了提升消息发送效率，降低消息发送耗时。
+
+>思考:让我们自己实现失败隔离功能，如何来做?
+>
+>1. 方案一：Producer中维护某JUC的Map集合，其key是发生失败的时间戳，value为Broker实例，Producer中还维护着一个Set集合，其中存放着所有未发生发送异常的Broker实例。选择目标Broker是从该Set集合中选择的。再定义一个定时任务，定期从Map集合中将长期未发生发送异常的Broker清理出去，并添加至et集合。
+>2. 方案二: 为Producer中的Broker实例添加一个标识，例如是一个AtomicBoolean属性。只要该Broker上发生过发送异常，就将其置为tue。选择目标Broker就是选择该属性值为alse的Broker。再定义一个定时任务，定期将Broker的该属性置为false。
+>3. 方案三:为Producer中的Broker实例添加一个标识，例如是一个tomicLong属性。只要该Broker上发生过发送异常，就使其值增一。选择目标Broker就是选择该属性小真最小的Broker。若该值相同，采用轮询方式选择。
+
+如果超过重试次数，则抛出异常，由Producer去保证消息不丢。当然当生产者出现RemotingException、MOClientException和MOBrokerException时，Producer会自动重投消息。
+
+
+
+### 3. 异步发送失败策略
+
+异步发送失败重试时，异步重试不会选择其他broker，仅在同一个broker上做重试，所以该策略无法保证
+消息不丢。
+
+```java
+// 指定异步发送失败后不进行重试发送
+producer.setRetryTimesWhenSendAsyncFailed(0);
+```
+
+### 4. 消息刷盘失败策略
+
+消息刷盘超时(Master或Slave)或slave不可用(slave在做数据同步时向master返回状态不是SEND OK)时，默认是不会将消息尝试发送到其他Broker的。不过，对于重要消息可以通过在Broker的配置文件设置retryAnotherBrokerWhenNotStoreOK属性为true来开启。
+
+## 8. 消息消费重试机制
+
+### 1. 顺序消息的消费重试
+
+对于顺序消息，当Consumer消费消息失败后，为了保证消息的顺序性，会自动不断地进行消息重试，直到消费成功，重试期间应用汇出现消费消息被阻塞的情况
+
+```java
+/**
+ * 顺序消息消费失败的消费重试时间间隔，默认为1000ms，取值范围为[10, 30000)ms
+ */
+pushConsumer.setSuspendCurrentQueueTimeMillis(100);
+```
+
+> 由于对顺序消息的重试是无休止不间断的，直到消费成功，所以对于顺序消息的消费，务必要保证应用能够即时监控并处理消费失败的情况，避免消费被永久性阻塞。
+
+**<font color=red>注意：顺序消息没有发送重试机制，但是有消费失败重试机制</font>**
+
+### 2. 无消息的消费重试
+
+对于无序消息（普通消息，延时消息，事务小弟兄），当Consumer消费消息失败时，可以通过设置返回状态达到消息重试的效果。不过需要注意，无序消息的重试只对集群消费方式生效，广播消费方式不提供失败重试特性。即对于广播消费，消费失败后，失败消息不再重试，继续消费后续消息。，
+
+#### 1. 消费重试次数与间隔
+
+对于无需消息集群消费下的重试消费，每条消息默认最多重试16次，但每次重试的间隔时间是不同的，会逐渐边长，每次重试的间隔时间如下
+
+| 重试次数 | 与上次重试间隔 | 重试次数 | 与上次重试间隔 |
+| -------- | -------------- | -------- | -------------- |
+| 1        | 10s            | 9        | 7m             |
+| 2        | 30s            | 10       | 8mm            |
+| 3        | 1m             | 11       | 9m             |
+| 4        | 2m             | 12       | 10m            |
+| 5        | 3m             | 13       | 20m            |
+| 6        | 4m             | 14       | 30m            |
+| 7        | 5m             | 15       | 1h             |
+| 8        | 6m             | 16       | 2h             |
+
+> 若一条消息在一直消费失败的前提下，将会在正常消费后的第 `4h46m` 后进行第16次重试
+
+```java
+// 修改消费重试次数
+pushConsumer.setMaxReconsumeTimes(10);
+```
+
+对于修改过重试次数的将按一下的策略执行
+
+- 若修改值小于16，则按照指定间隔进行重试
+- 若修改值大于16，则超过16次的重试时间间隔均为2小时
+
+对于ConsumerGroup，若仅修改了一个Consumer的消费重试次数，则会应用到该Group中所有的Consumer示例，若出现了多个Consumer均做了修改的情况，则采用覆盖方式生效，最后被修改的值会覆盖前面设置的值
+
+#### 2. 重试队列
+
+对于需要重试消费的消息，并不是Consumer在等待了指定时长后再次去拉取原来的消息进行消费，而是将这些需要重试消费的消息放入到了一个特殊Topic的队列中，而后进行再次消费的。这个特殊的队列就是重试队列。
+当出现需要进行重试消费的消息时，Broker会为每个消费组都设置一个Topic名称为<font color=red>%RETRY%consumerGroup@consumerGroup</font>的重试队列。
+
+> 1. 这个重试队列是针对消息组的，而不是针对每个Topic设置的，一个Topic的消息可以让多个消费者组进行消费， 所以为这些消费者组个创建一个重试队列
+> 2. 只有当出现需要进行重试消费的消息是，才会为该消费者组创建重试队列
+
+消费重试的时间间隔与<font color=blue>延时消费的延时等级</font>十分相似，除了没有延时等级的前两个时间，其他都是相同的
+
+Broker对于重试消息的处理是通过延时消息实现的。先将消息保存到SCHEDULE_TOPIC_XXXX延迟队列中，延迟时间到后，会将消息投递到`%RETRY%consumerGroup@consumerGroup`重试队列中。
+
+#### 3. 消费重试配置方式
+
+集群消费方式下，消息消费失败后若希望消息重试，则需要再消息监听器接口的视线中明确进行如下三种
+
+1. 返回`ConsumeGoncurrentlyStatus.RECONSUME_LATER`
+2. 返回null
+3. 抛出异常
+
+#### 4. 消费不重试配置方式
+
+```java
+ consumer.registerMessageListener(
+     (MessageListenerConcurrently) (msgs, context) -> {
+        try {
+            
+        } catch (Throwable e) {
+            return consumeConcurrentlyStatus.CONSUME_SUCCESS;
+        }
+         return consumeConcurrentlyStatus.CONSUME_SUCCESS;
+     });
+```
+
+集群消费方式下，消息消费失败后若不希望消费重试，则再捕获到异常后同样也返回与消费成功相同的结果，就不会进行消费重试
+
+## 9. 死信队列
+
+### 1. 什么是死信队列
+
+当一条消息初次消费失败，消息队列会自动进行消费重试;达到最大重试次数后，若消费依然失败，则表明消费者在正常情况下无法正确地消费该消息，此时，消息队列不会立刻将消息丢弃，而是将其发送到该消费者对应的特殊队列中。这个队列就是死信队列(Dead-Letter Queue，DLQ)，而其中的消息则称为
+死信消息(Dead-LetterMessage，DLM)。
+
+>  死信队列适用于处理无法被正常消费的消息的
+
+### 2. 死信队列的特征
+
+1. 死信队列中的消息不会再被消费者正常消费
+2. 死信队列存储有效期和正常消息相同，均为3天，过期自动删除
+3. 死信队列就是一个特殊的Topic, 名称为`%DLQ%consumerGroup@consumerGroup`
+4. 如果一个消费者组未产生死信消息，则不会为其创建对应的死信队列
+
+### 3. 死信消息的处理
+
+实际上，当一条消息进入死信队列，就意味着系统中某些地方出现了问题，从而导致消费者无法正常消费该消息，比如代码中原本就存在Bug。因此，对于死信消息，通常需要开发人员进行特殊处理。最关键的步骤是要排查可疑因素，解决代码中可能存在的Bug。然后再将原来的死信消息再次进行投递消费。
