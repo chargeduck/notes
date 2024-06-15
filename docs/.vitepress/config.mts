@@ -35,6 +35,15 @@ export default defineConfig({
             link: '/server/dockerInit'
           }
         ]
+      },
+      {
+        text: '数据库',
+        items: [
+          {
+            text: 'ElasticSearch',
+            link: '/database/elasticsearch'
+          }
+        ]
       }
     ],
 
@@ -102,6 +111,16 @@ export default defineConfig({
           {
             text: '自定义权限注解',
             link: '/backend/utils/permissionControl'
+          }
+        ]
+      },
+      {
+        text: '数据库',
+        collapsable: true,
+        items: [
+          {
+            text: 'ElasticSearch',
+            link: '/database/elasticsearch'
           }
         ]
       }
