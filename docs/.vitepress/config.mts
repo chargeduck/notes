@@ -41,7 +41,7 @@ export default defineConfig({
         items: [
           {
             text: 'ElasticSearch',
-            link: '/database/elasticsearch'
+            link: '/database/elasticsearch_antguigu'
           }
         ]
       }
@@ -120,7 +120,7 @@ export default defineConfig({
         items: [
           {
             text: 'ElasticSearch',
-            link: '/database/elasticsearch'
+            link: '/database/elasticsearch_antguigu'
           }
         ]
       }
