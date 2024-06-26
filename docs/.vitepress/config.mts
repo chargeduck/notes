@@ -42,6 +42,10 @@ export default defineConfig({
           {
             text: 'ElasticSearch',
             link: '/database/elasticSearch'
+          },
+          {
+            text: 'MongoDB',
+            link: '/database/mongodb'
           }
         ]
       }
@@ -121,6 +125,10 @@ export default defineConfig({
           {
             text: 'ElasticSearch',
             link: '/database/elasticSearch'
+          },
+          {
+            text: 'MongoDB',
+            link: '/database/mongodb'
           }
         ]
       }
