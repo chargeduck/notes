@@ -83,6 +83,10 @@ export default defineConfig({
                 link: '/backend/mq/rocketmq'
               }
             ]
+          },
+          {
+            text: 'Kafka2024',
+            link: '/backend/mq/kafka'
           }
 
         ]
