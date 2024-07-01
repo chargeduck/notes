@@ -91,6 +91,62 @@ kafka-server-start.bat ../../config/server.properties
 jps -l
 ```
 
+### 3. UI页面查看
+
+1. [OffsetExplorer](https://www.kafkatool.com/download3/offsetexplorer_64bit.exe)
+
+> 直接新建连接就行
+
+1. [Kraft-UI](https://github.com/provectus/kafka-ui/releases/download/v0.7.2/kafka-ui-api-v0.7.2.jar)
+
+> 启动之后访问[localhost:8080](http://localhost:8080)，应该是仅支持Kraft模式启动的
+
+可以使用`360压缩`或者是`jd-gui`打开下载的jar包，进入到`BOOT_INF\classes`下，将`application-local.yml`内容修改以下保存重新打包即可
+
+```yaml
+logging:
+  level:
+    root: INFO
+    com.provectus: DEBUG
+    #org.springframework.http.codec.json.Jackson2JsonEncoder: DEBUG
+    #org.springframework.http.codec.json.Jackson2JsonDecoder: DEBUG
+    reactor.netty.http.server.AccessLog: INFO
+
+#server:
+#  port: 8080 #- Port in which kafka-ui will run.
+
+kafka:
+  clusters:
+    - name: local
+      bootstrapServers: 192.168.242.130:9092
+      # zookeeper: localhost:2181
+      schemaRegistry: http://localhost:8085
+      ksqldbServer: http://localhost:8088
+      kafkaConnect:
+        - name: first
+          address: http://localhost:8083
+      metrics:
+        port: 9997
+        type: JMX
+    - name: 192.168.242.130    
+      bootstrapServers:  192.168.242.130:9092
+      metrics:
+        port: 9997
+        type: JMX
+spring:
+  jmx:
+    enabled: true
+
+auth:
+  type: DISABLED
+```
+
+```shell
+java -jar --add-opens java.rmi/javax.rmi.ssl=ALL-UNNAMED g:\ide\kafka-ui\kafka-ui-api-v0.7.1.jar --spring.profiles.active=localhost
+```
+
+
+
 ## 3.  Topic操作
 
 1. 创建topic
@@ -245,6 +301,132 @@ public class KafkaConsumerTest {
 }
 ```
 
-## 5. Kafka-Tool
+## 5. 集群搭建
 
-> [下载地址](https://www.kafkatool.com/download3/offsetexplorer_64bit.exe)
+### 1. ~~Windows下搭建集群~~
+
+> ~~试了一上午没成功，下边的内容不可靠~~
+
+1. 创建一个文件夹`kafka_cluster`
+2. 复制刚才的`kafka`文件夹到`kafka_cluster`中，分别命名为`kafka`,`kafka_1`,`kafka_2`,`kafka_3`
+
+3. 修改配置文件
+
+```shell
+# kafka/config/kraft/server.properties
+# The node id associated with this instance's roles
+node.id=1
+log.dirs=G:/ide/kafka_cluster/kafka/data/log
+```
+
+```shell
+# kafka/config/kraft_1/server.properties
+# The node id associated with this instance's roles
+node.id=2
+controller.quorum.voters=1@localhost:9093,2@localhost:9193,3@localhost:9293,4@localhost:9393
+advertised.listeners=PLAINTEXT://localhost:9192
+listeners=PLAINTEXT://:9192,CONTROLLER://:9193
+advertised.listeners=PLAINTEXT://localhost:9192
+log.dirs=G:/ide/kafka_cluster/kafka_1/data/log
+```
+
+```shell
+# kafka/config/kraft_2/server.properties
+# The node id associated with this instance's roles
+node.id=3
+controller.quorum.voters=1@localhost:9093,2@localhost:9193,3@localhost:9293,4@localhost:9393
+advertised.listeners=PLAINTEXT://localhost:9292
+listeners=PLAINTEXT://:9292,CONTROLLER://:9293
+advertised.listeners=PLAINTEXT://localhost:9292
+log.dirs=G:/ide/kafka_cluster/kafka_2/data/log
+```
+
+```shell
+# kafka/config/kraft_3/server.properties
+# The node id associated with this instance's roles
+node.id=4
+controller.quorum.voters=1@localhost:9093,2@localhost:9193,3@localhost:9293,4@localhost:9393
+listeners=PLAINTEXT://:9392,CONTROLLER://:9393
+advertised.listeners=PLAINTEXT://localhost:9392
+log.dirs=G:/ide/kafka_cluster/kafka_3/data/log
+```
+
+4. 在`kafka`文件夹下创建`kraft.cmd`,双击启动，复制到其他三个文件夹下
+
+```shell
+call bin/windows/kafka-server-start.bat config/kraft/server.properties
+```
+
+5. 在`kafka_cluster`下创建`cluster.cmd`用于批量启动
+
+```shell
+cd kafka
+start kraft.cmd
+cd ../kafka_1
+start kraft.cmd
+cd ../kafka_2
+start kraft.cmd
+cd ../kafka_3
+start kraft.cmd
+```
+
+6. 在`kafka_cluster`下创建`cluster_clear.cmd`用于批量清空
+
+```shell
+cd kafka
+rd /s /q data
+cd ../kafka_1
+rd /s /q data
+cd ../kafka_2
+rd /s /q data
+cd ../kafka_3
+rd /s /q data
+```
+
+7. 如果提示了` No readable meta.properties files found.`那就生成一下节点的uuid，这个问题是调用了`cluster_clear.cmd`清除了`data/log`目录导致的,修改所有的`kraft.cmd`
+
+- `kafka/kraft.cmd`
+
+> 这里生成的uuid需要再其他节点的 -t 参数中填上，但是我的就是执行不了。就会报错命令语法不对
+
+```shell
+@echo off
+for /f "delims=" %%a in ('call bin/windows/kafka-storage.bat random-uuid') do set uuid=%%a
+echo %uuid%
+call bin/windows/kafka-storage.bat format -t %uuid% -c config/kraft/server.properties
+call bin/windows/kafka-server-start.bat config/kraft/server.properties
+```
+
+- `kafka_1/kraft.cmd`,其他两个按照`node.id`填写
+
+### 2. [Centos下搭建集群](/backend/mq/kafka/centos_cluster.html)
+
+### X. 遇到的问题
+
+1.  No readable meta.properties files found.
+
+> 执行了`cluster_clear.cmd`之后把`data`目录删除了导致了
+
+2. 命令语法不正确。
+
+> 能正常启动一个，但是另外三个启动不起来，批处理命令改成
+
+```shell
+@echo off
+# -t 后边的改为 node.id
+call bin/windows/kafka-storage.bat format -t 2 -c config/kraft/server.properties
+call bin/windows/kafka-server-start.bat config/kraft/server.properties
+```
+
+3. 请求的操作无法在使用用户映射区域打开的文件上执行。
+
+> `Windows`下需要将`config/kraft/server.properties`配置的`log.dirs`值中的`/`改成`/`
+
+4. Address already in use: bind
+
+> 端口占用的问题，把9093啥的改成自己的端口
+
+5. Unexpected error INCONSISTENT_CLUSTER_ID in VOTE response: InboundResponse。
+
+> 启动意识刷屏报错，这是因为没有个给设置集群id
+
