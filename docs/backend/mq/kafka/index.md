@@ -99,7 +99,7 @@ jps -l
 
 1. [Kraft-UI](https://github.com/provectus/kafka-ui/releases/download/v0.7.2/kafka-ui-api-v0.7.2.jar)
 
-> 启动之后访问[localhost:8080](http://localhost:8080)，应该是仅支持Kraft模式启动的
+> 启动之后访问`localhost:8080`，应该是仅支持Kraft模式启动的
 
 可以使用`360压缩`或者是`jd-gui`打开下载的jar包，进入到`BOOT_INF\classes`下，将`application-local.yml`内容修改以下保存重新打包即可
 
