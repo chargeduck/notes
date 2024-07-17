@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
+// @ts-ignore
 export default defineConfig({
   base: '/notes/',
   title: "notes",
@@ -33,6 +34,10 @@ export default defineConfig({
           {
             text: 'Docker',
             link: '/server/dockerInit'
+          },
+          {
+            text: 'CentOs',
+            link: '/server/centosInit'
           }
         ]
       },
