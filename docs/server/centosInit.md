@@ -201,7 +201,14 @@ systemctl enable mysqld;
 >
 > 参考链接[# linux下openssl版本问题 /lib64/libcrypto.so.10: version `OPENSSL_1.0.2‘ not found](https://blog.csdn.net/xiongben0102/article/details/121649828)
 
+2. mysqld: error while loading shared libraries: libaio.so.1: cannot open shared object file: No such file or directory
 
+> 缺少`libaio.so.1`
+>
+> ```shell
+> yum install -y libaio.so.1
+> yum install -y libaio
+> ```
 
 # 3. Redis安装
 
