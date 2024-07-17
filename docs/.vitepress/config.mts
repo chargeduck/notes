@@ -77,15 +77,28 @@ export default defineConfig({
             items: [
               {
                 text: '尚硅谷版',
-                link: '/backend/mq/rocketmq_antguigu'
+                link: '/backend/mq/rocketmq/rocketmq_antguigu'
               },
               {
                 text: '黑马版',
-                link: '/backend/mq/rocketmq_itcast'
+                link: '/backend/mq/rocketmq/rocketmq_itcast'
               },
               {
                 text: '自己整理',
-                link: '/backend/mq/rocketmq'
+                link: '/backend/mq/rocketmq/rocketmq'
+              }
+            ]
+          },
+          {
+            text: 'Kafka',
+            items: [
+              {
+                text: 'Kafka简介',
+                link: '/backend/mq/kafka/index'
+              },
+              {
+                text: 'Centos安装Kafka集群(Kraft)',
+                link: '/backend/mq/kafka/centos_cluster'
               }
             ]
           }
