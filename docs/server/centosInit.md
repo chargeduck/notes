@@ -1,6 +1,6 @@
 :::tip
-Centos服务器，java开发环境初始化搭建 [NAT永久服务器购买链接 4C2G100M30G](https://ipxr.cn/aff/ULDEKNUV)
-
+Centos服务器，java开发环境初始化搭建 <br/>
+[NAT永久服务器购买链接 4C2G100M30G](https://ipxr.cn/aff/ULDEKNUV)
 1. [JDK安装](#_1-jdk安装)
 2. [Mysql安装](#_2-mysql8安装)
 3. [Redis安装](#_3-redis安装)
@@ -186,14 +186,14 @@ rpm -qa|grep mysql|grep -v grep
 
 ```shell
 # 安装openssl
-
+yun install openssl
 mysqld --initialize;
 chown mysql:mysql /var/lib/mysql -R;
 systemctl start mysqld.service;
 systemctl enable mysqld;
 ```
 
-### 1. 遇到的问题
+### 2. 遇到的问题
 
 1. `mysqld: /lib64/libcrypto.so.10: version OPENSSL_1.0.2 not found (required by mysqld)`
 
@@ -210,17 +210,180 @@ systemctl enable mysqld;
 > yum install -y libaio
 > ```
 
+3. /usr/bin/perl is needed by mysql-community-server-8.4.1-1.el7.x86_64
+   	perl(Getopt::Long) is needed by mysql-community-server-8.4.1-1.el7.x86_64
+   	perl(strict) is needed by mysql-community-server-8.4.1-1.el7.x86_64
+
+> ```shell
+> yum install -y perl-Module-Install.noarch
+> ```
+>
+> 
+
+4. Plugin 'mysql_native_password' is not loaded
+
+> 需要修改my.cnf
+>
+> ```ini
+> [mysqld]
+> default_authentication_plugin=mysql_native_password
+> ```
+
+
+
 # 3. Redis安装
 
-1. 安装redis源
+## 1. 安装redis
+
+> 参考链接
+>
+> 1. [CentOS(Linux)离线安装Redis详细教程（亲测可行）](https://blog.csdn.net/a342874650/article/details/133750053)
+
+1. 直接下载源文件
 
 ```shell
-sudo yum install epel-release 
+# 使用wget下载或者下载到本地然后使用xftp或者scp命令上传到服务器
+wget http://download.redis.io/releases/redis-7.2.5.tar.gz
 ```
 
-2.
+2. 解压缩
+
+```shell
+tar -zxvf redis-7.2.5.tar.gz
+```
+
+3. 进入目录编译
+
+```shell
+cd redis-7.2.5
+# 如果有了的话就不许要安装了
+yum install gcc
+make MALLOC=libc
+```
+
+执行完可以尝试一下安装
+
+```shell
+# 测试是否可以安装
+make test
+# 提示 缺什么就用yum安装就行了
+cd src && make test
+which: no python3 in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin)
+make[1]: Entering directory `/opt/software/redis-7.2.5/src'
+    CC Makefile.dep
+make[1]: Leaving directory `/opt/software/redis-7.2.5/src'
+which: no python3 in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin)
+make[1]: Entering directory `/opt/software/redis-7.2.5/src'
+You need tcl 8.5 or newer in order to run the Redis test
+make[1]: *** [test] Error 1
+make[1]: Leaving directory `/opt/software/redis-7.2.5/src'
+make: *** [test] Error 2
+# 我这个就需要安装tcl python3
+yum install tcl
+yum install python3
+```
+
+没问题就执行安装
+
+```shell
+cd src && make install
+# 提示信息
+Hint: It's a good idea to run 'make test' ;)
+
+    INSTALL redis-server
+    INSTALL redis-benchmark
+    INSTALL redis-cli
+
+```
+
+4. 运行
+
+```shell
+./redis-server
+```
+
+## 2. 设置redis自启动
+
+1. 创建目录
+
+```shell
+mkdir /etc/redis/
+```
+
+2. 复制配置文件
+
+```shell
+cd ../
+# /opt/software/redis-7.2.5 这个要看你具体放的位置
+cp redis.conf /etc/redis/6379.conf
+```
+
+3. 修改配置
+
+```shell
+vim /etc/redis/6379.conf
+# 可以使用搜索 ?daemonize 或者 /daemonize
+# 如果是我这个版本可以直接跳转
+# 设置行号
+:set nu
+# 跳转
+: 309
+# 309行
+daemonize yes
+# 87行 注释掉
+#bind 127.0.0.1 -::1
+# 1044行开启密码
+requirepass your_password
+```
+
+4. 复制启动文件
+
+```shell
+cp utils/redis_init_script /etc/init.d/redisd
+chmod +x /etc/init.d/redisd
+```
+
+5. 增加系统服务
+
+```shell
+chkconfig --add redisd
+```
+
+6. 开放防火墙
+
+```shell
+firewall-cmd --add-port=6379/tcp --permanent
+systemctl restart firewalld
+# 查看有哪些端口开放
+firewall-cmd --zone=public --list-ports
+```
+
+7. 启动
+
+```shell
+service redisd start
+# 或者
+systemctl start redisd
+# 查询状态
+systemctl status redisd
+```
+
+8. 连接测试
+
+```shell
+cd /opt/software/redi-7.2.5/src
+./redis-cli
+# 认证，没开密码就算了
+AUTH your_password
+```
 
 # 4. Nginx安装
+
+参考我的已有文章
+
+1. [Centos安装Nginx错误集锦](https://juejin.cn/post/7094622494060986381)
+2. [nginx安装、前后端分离部署流程](https://juejin.cn/post/7095261381259165733)
+3. [Nginx安装部署SSl证书搭建HTTPS](https://juejin.cn/post/7158444709411553310)
 
 # 5. 问题
 
