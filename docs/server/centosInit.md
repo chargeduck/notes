@@ -400,4 +400,228 @@ kill -9 3909
 rm -f /var/lib/rpm/__db*
 rpm --rebuilddb
 ```
+# 6. 最近腾讯云天天被攻击，写了个脚本方便以后用
+1. autoInstaller.sh
+> 自动安装jdk 11 jps redis mysql nginx 
+>
+> 安装redis的时候有点问题重新启动一下就好了
+```shell
+ #!/bin/bash
 
+# 打印欢迎信息
+echo "欢迎使用软件安装脚本！"
+# 获取当前工作目录
+current_dir=$(pwd)
+
+# 判断是否在 /opt/software 目录下
+if [ "$current_dir" = "/opt/software" ]; then
+    echo "当前在 /opt/software 目录"
+else
+    # 判断是否存在 /opt/software 目录
+    if [! -d "/opt/software" ]; then
+        mkdir -p /opt/software
+        echo "创建了 /opt/software 目录"
+    fi
+    cd /opt/software
+    echo "已切换到 /opt/software 目录"
+fi
+
+# 安装 JDK
+# 提示用户是否安装 JDK
+echo "是否要安装 JDK？(输入 y 表示安装，输入其他表示跳过)"
+read install_jdk
+
+if [ "$install_jdk" = "y" ]; then
+    # 输出当前系统中与 jdk 相关的软件包信息
+    jdk_info=$(rpm -qa | grep jdk)
+    echo "当前系统中与 jdk 相关的软件包信息: $jdk_info"
+    # 卸载预装的 JDK
+    sudo yum -y remove $(rpm -qa | grep jdk)
+    # 安装特定版本的 JDK
+    sudo yum install java-11-openjdk
+    # 安装 JDK 相关组件
+    sudo yum install -y java-11-openjdk-devel.x86_64
+else
+    # 输出跳过 JDK 安装的提示
+    echo "您选择跳过 JDK 安装"
+fi
+
+# 安装 MySQL
+# 提示用户是否安装 MySQL
+echo "是否要安装 MySQL？(输入 y 表示安装，输入其他表示跳过)"
+read install_mysql
+if [ "$install_mysql" = "y" ]; then
+    # 获取系统版本
+    system_version=$(cat /etc/redhat-release | grep -oE '[0-9]+')
+    # 输出当前系统中与 mariadb 相关的软件包信息
+    mariadb_info=$(rpm -qa | grep mariadb | grep -v grep)
+    echo "当前系统中与 mariadb 相关的软件包信息: $mariadb_info"
+    # 卸载默认的 MariaDB
+    sudo yum -y remove $(rpm -qa | grep mariadb)
+    # 输出安装后的 MySQL 相关软件包信息
+    mysql_info=$(rpm -qa | grep mysql | grep -v grep)
+    echo "当前系统中与 mysql 相关的软件包信息: $mysql_info"
+    sudo yum -y remove $(rpm -qa | grep mysql | grep -v grep)
+    # 安装相关依赖和进行其他安装操作
+    sudo yum install wget
+    mkdir mysql
+    cd mysql
+    if [ "$system_version" = "8" ]; then
+        # 如果是 CentOS 8，执行以下安装步骤
+        wget http://repo.mysql.com/mysql80-community-release-el7-3.noarch.rpm
+        rpm -ivh mysql80-community-release-el7-3.noarch.rpm
+        yum install mysql-server -y
+        service mysqld start
+        service mysqld status
+        systemctl enable mysqld.service
+    else
+        wget https://cdn.mysql.com//Downloads/MySQL-8.4/mysql-8.4.1-1.el7.x86_64.rpm-bundle.tar
+        tar -xvf mysql-8.4.1-1.el7.x86_64.rpm-bundle.tar
+        rpm -ivh mysql-community-common-8.4.1-1.el7.x86_64.rpm
+        rpm -ivh mysql-community-client-plugins-8.4.1-1.el7.x86_64.rpm
+        rpm -ivh mysql-community-libs-8.4.1-1.el7.x86_64.rpm
+        rpm -ivh mysql-community-client-8.4.1-1.el7.x86_64.rpm
+        rpm -ivh mysql-community-icu-data-files-8.4.1-1.el7.x86_64.rpm
+        rpm -ivh mysql-community-server-8.4.1-1.el7.x86_64.rpm
+        sudo yum install -y openssl
+        sudo yum install -y libaio.so.1
+        sudo yum install -y libaio
+        sudo yum install -y perl-Module-Install.noarch
+
+        mysqld --initialize
+        chown mysql:mysql /var/lib/mysql -R
+        systemctl start mysqld.service
+        systemctl enable mysqld
+        sudo systemctl start mysqld
+    fi    
+    cd ../
+else
+    # 输出跳过 MySQL 安装的提示
+    echo "您选择跳过 MySQL 安装"
+fi
+
+# 安装 Redis
+# 提示用户是否安装 Redis
+echo "是否要安装 Redis？(输入 y 表示安装，输入其他表示跳过)"
+read install_redis
+
+if [ "$install_redis" = "y" ]; then
+    mkdir redis
+    cd redis
+    wget http://download.redis.io/releases/redis-7.2.5.tar.gz
+    tar -zxvf redis-7.2.5.tar.gz
+    cd redis-7.2.5
+    yum install -y gcc
+    yum install -y tcl
+    yum install -y python3
+    make MALLOC=libc
+    echo "是否执行make test测试能否安装？(输入 y 表示安装，输入其他表示跳过)"
+    read make_test
+    if [ "$make_test" = "y" ]; then
+        make test
+    else
+        cd src && make install
+        mkdir /etc/redis/
+        cd ../
+        pwd
+        cp redis.conf /etc/redis/6379.conf
+        file_path="/etc/redis/6379.conf"
+        # 先设置终端输入模式，允许删除和回退
+        sed -i '/daemonize no/daemonize yes/g' "$file_path"
+        sed -i '/bind 127.0.0.1 -::1/#bind 127.0.0.1 -::1/g' "$file_path"
+        sed -i '1044s/requirepass.*/requirepass '$password'/' "$file_path"
+        cp utils/redis_init_script /etc/init.d/redisd
+        chmod +x /etc/init.d/redisd
+        chkconfig --add redisd
+        systemctl start redisd
+        systemctl status redisd
+        echo "修改密码请到 /etc/redis/6379.conf修改 1044行 reuirepass youer_password"
+    fi    
+    cd ../
+else
+    # 输出跳过 Redis 安装的提示
+    echo "您选择跳过 Redis 安装"
+fi
+
+# 安装 Nginx
+# 提示用户是否安装 Nginx
+echo "是否要安装 Nginx？(输入 y 表示安装，输入其他表示跳过)"
+read install_nginx
+
+if [ "$install_nginx" = "y" ]; then
+    mkdir nginx
+    cd nginx
+    wget http://nginx.org/download/nginx-1.27.0.tar.gz
+    tar -zxvf nginx.tar.gz
+    yum -y install pcre-devel
+    yum -y install openssl openssl-devel
+    yum -y install zlib-devel
+    ./configure --prefix=/usr/local/nginx --with-http_ssl_module
+    make
+    make install
+    whereis nginx
+    cd /usr/local/nginx/sbin
+    ./nginx
+
+else
+    # 输出跳过 Nginx 安装的提示
+    echo "您选择跳过 Nginx 安装"
+fi
+
+# 输出安装了哪些软件
+installed_software=""
+if [ "$install_jdk" = "y" ]; then
+    installed_software="$installed_software JDK"
+fi
+if [ "$install_mysql" = "y" ]; then
+    installed_software="$installed_software MySQL"
+fi
+if [ "$install_redis" = "y" ]; then
+    installed_software="$installed_software Redis"
+fi
+if [ "$install_nginx" = "y" ]; then
+    installed_software="$installed_software Nginx"
+fi
+cd /opt
+# 输出最终安装的软件列表
+echo "安装了以下软件: $installed_software"
+echo "请执行 chmod +x openPorts.sh提升权限,并执行openPorts.sh来开放端口"
+```
+2. openPorts.sh
+> 自动安装firewalld，批量开放端口
+
+```shell
+#!/bin/bash
+
+# 检查 firewalld 是否安装
+if rpm -q firewalld >/dev/null; then
+    sudo systemctl start firewalld
+    sudo systemctl enable firewalld
+else
+    # 未安装则进行安装
+    sudo yum install firewalld -y
+    sudo systemctl start firewalld
+    sudo systemctl enable firewalld
+fi
+
+# 提示用户输入端口号
+echo "请输入您想要打开的端口号，用空格隔开："
+# 先设置终端输入模式，允许删除和回退
+stty erase ^H
+read ports
+# 恢复终端输入模式为默认
+stty sane
+
+# 拆分用户输入的端口号
+IFS=' ' read -ra port_array <<<"$ports"
+
+# 开启端口
+for port in "${port_array[@]}"; do
+    sudo firewall-cmd --add-port="$port"/tcp --permanent
+done
+
+sudo systemctl restart firewalld
+echo "重启firewall成功, 当前服务器开放端口为"
+sudo firewall-cmd --list-ports
+
+```
