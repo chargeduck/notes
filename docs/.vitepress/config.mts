@@ -133,6 +133,14 @@ export default defineConfig({
           {
             text: '自定义权限注解',
             link: '/backend/utils/permissionControl'
+          },
+          {
+            text: 'Dynamic多数据源',
+            link: '/backend/utils/dynamicDataSource'
+          },
+          {
+            text: 'Cors跨域配置',
+            link: '/backend/utils/corsConfig'
           }
         ]
       },
