@@ -53,6 +53,15 @@ export default defineConfig({
             link: '/database/mongodb'
           }
         ]
+      },
+      {
+        text: '前端',
+        items: [
+          {
+            text: '动态表格',
+            link: '/frontend/utils/dynamicTable'
+          }
+        ]
       }
     ],
 
@@ -124,7 +133,7 @@ export default defineConfig({
           },
           {
             text: 'EasyExcel导出工具类，动态合并表头',
-            link: '/backend/utils/DynamicMergeHeader'
+            link: '/backend/utils/dynamicMergeHeader'
           },
           {
             text: '导出Word工具类',
@@ -136,7 +145,7 @@ export default defineConfig({
           },
           {
             text: 'Dynamic多数据源',
-            link: '/backend/utils/dynamicDataSource'
+            link: '/backend/utils/dynamicDatasource'
           },
           {
             text: 'Cors跨域配置',
@@ -155,6 +164,16 @@ export default defineConfig({
           {
             text: 'MongoDB',
             link: '/database/mongodb'
+          }
+        ]
+      },
+      {
+        text: '前端',
+        collapsed: true,
+        items: [
+          {
+            text: '动态表格',
+            link: '/frontend/utils/dynamicTable'
           }
         ]
       }
