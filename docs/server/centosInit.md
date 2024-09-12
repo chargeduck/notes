@@ -7,6 +7,64 @@ Centos服务器，java开发环境初始化搭建 <br/>
 4. [Nginx安装](#_4-nginx安装)
    :::
 
+# 0。 Centos换源
+> 由于CentOs官方已全面停止维护CentOs Linux项目，
+> 公告指出CentOs 7和8在2024年6月30日停止技术服务支持，
+> 详情见CentOs官方公告。导致CentOs系统源已全面失效，
+> 比如安装宝塔等等会出现网络不可达等报错，解决方案是更换系统源。
+> 输入以下命令:
+> 
+```shell
+bash <(curl -sSL https://linuxmirrors.cn/main.sh)
+```
+然后选择中国科技大学或者清华大学，一直按回车不要按Y，源更换完成就可以正常安装软件了
+
+如果提示下边的错误
+```text
+http://mirrors.ustc.edu.cn/epel/7/x86_64/repodata/repomd.xml: [Errno 14] HTTP Error 404 - Not Found
+Trying other mirror.
+To address this issue please refer to the below wiki article 
+
+https://wiki.centos.org/yum-errors
+
+If above article doesn't help to resolve this issue please use https://bugs.centos.org/.
+
+
+
+ One of the configured repositories failed (Extra Packages for Enterprise Linux 7 - x86_64),
+ and yum doesn't have enough cached data to continue. At this point the only
+ safe thing yum can do is fail. There are a few ways to work "fix" this:
+
+     1. Contact the upstream for the repository and get them to fix the problem.
+
+     2. Reconfigure the baseurl/etc. for the repository, to point to a working
+        upstream. This is most often useful if you are using a newer
+        distribution release than is supported by the repository (and the
+        packages for the previous distribution release still work).
+
+     3. Run the command with the repository temporarily disabled
+            yum --disablerepo=epel ...
+
+     4. Disable the repository permanently, so yum won't use it by default. Yum
+        will then just ignore the repository until you permanently enable it
+        again or use --enablerepo for temporary usage:
+
+            yum-config-manager --disable epel
+        or
+            subscription-manager repos --disable=epel
+
+     5. Configure the failing repository to be skipped, if it is unavailable.
+        Note that yum will try to contact the repo. when it runs most commands,
+        so will have to try and fail each time (and thus. yum will be be much
+        slower). If it is a very temporary problem though, this is often a nice
+        compromise:
+
+            yum-config-manager --save --setopt=epel.skip_if_unavailable=true
+```
+则执行下边的命令就可以了
+```shell
+yum-config-manager --disable epel
+```
 # 1. JDK安装
 
 1. 查询系统安装的jdk
