@@ -595,7 +595,6 @@ if [ "$install_redis" = "y" ]; then
         systemctl status redisd
         echo "修改密码请到 /etc/redis/6379.conf修改 1044行 reuirepass youer_password"
     fi    
-    cd ../
 else
     # 输出跳过 Redis 安装的提示
     echo "您选择跳过 Redis 安装"
@@ -607,8 +606,9 @@ echo "是否要安装 Nginx？(输入 y 表示安装，输入其他表示跳过)
 read install_nginx
 
 if [ "$install_nginx" = "y" ]; then
+    cd /opt/software
     mkdir nginx
-    cd nginx
+    cd /opt/software/nginx
     wget http://nginx.org/download/nginx-1.27.0.tar.gz
     tar -zxvf nginx.tar.gz
     yum -y install pcre-devel
