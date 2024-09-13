@@ -60,6 +60,10 @@ export default defineConfig({
           {
             text: '动态表格',
             link: '/frontend/utils/dynamicTable'
+          },
+          {
+            text: '跨域配置',
+            link: '/frontend/utils/corsConfig'
           }
         ]
       }
