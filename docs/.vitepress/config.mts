@@ -25,6 +25,10 @@ export default defineConfig({
           {
             text: 'Nginx',
             link: '/backend/nginx/nginx子请求鉴权'
+          },
+          {
+            text: 'IO',
+            link: '/backend/io/index'
           }
         ]
       },

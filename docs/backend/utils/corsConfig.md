@@ -279,3 +279,5 @@ public class CorsFilter implements WebFilter {
 }
 
 ```
+
+# 3. [前端Vue配置proxyTable](/frontend/utils/corsConfig)
