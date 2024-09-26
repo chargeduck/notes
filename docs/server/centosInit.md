@@ -7,7 +7,7 @@ Centos服务器，java开发环境初始化搭建 <br/>
 4. [Nginx安装](#_4-nginx安装)
    :::
 
-# 0。 Centos换源
+# 0. Centos换源
 > 由于CentOs官方已全面停止维护CentOs Linux项目，
 > 公告指出CentOs 7和8在2024年6月30日停止技术服务支持，
 > 详情见CentOs官方公告。导致CentOs系统源已全面失效，

@@ -467,12 +467,652 @@ public class SocketChannelTest {
 
 ### 4. DatagramChannel
 
-> 正如SocketChannel对应Socket,ServerSocketChannel对应ServerSocket，每一个 DatagramChannel对象也有一个关联的 DatagrmSocket 对象。正如SocketChannel模拟连接导向的流协议(如TCP/IP)，DatagramChannel则模拟包导向的无连接协议(如 UDP/IP)。DatagramChannel是无连接的，每个数据报(datagram)都是一个自包含的实体，拥有它自己的目的地址及不依赖其他数据报的数据负载。与面向流的的 socket不同，DatagramChannel可以发送单独的数据报给不同的目的地址。同样，DatagramChannel对象也可以接收来自任意地址的数据包。每个到达的数据报都含有关于它来自何处的信息(源地址)“
+> 正如SocketChannel对应Socket,ServerSocketChannel对应ServerSocket，
+> 每一个 DatagramChannel对象也有一个关联的 DatagrmSocket 对象。
+> 正如SocketChannel模拟连接导向的流协议(如TCP/IP)，DatagramChannel则模拟包导向的无连接协议(如 UDP/IP)。DatagramChannel是无连接的，每个数据报(datagram)都是一个自包含的实体，拥有它自己的目的地址及不依赖其他数据报的数据负载。与面向流的的 socket不同，DatagramChannel可以发送单独的数据报给不同的目的地址。同样，DatagramChannel对象也可以接收来自任意地址的数据包。每个到达的数据报都含有关于它来自何处的信息(源地址)“
+- 代码示例
+```java
+package net.lesscoding.nio.channel;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.Test;
+
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * @author eleven
+ * @date 2024/9/20 8:55
+ * @apiNote
+ */
+@Slf4j
+public class DatagramChannelTest {
+
+    @Test
+    public void sendTest() {
+        try (DatagramChannel sendChannel = DatagramChannel.open()) {
+            InetSocketAddress sendAddress = new InetSocketAddress("127.0.0.1", 9999);
+            while (true) {
+                ByteBuffer buffer = ByteBuffer.wrap("发送测试数据".getBytes(StandardCharsets.UTF_8));
+                sendChannel.send(buffer, sendAddress);
+                log.info("发送数据成功");
+                Thread.sleep(1000);
+            }
+        } catch (Exception e) {
+            log.error("打开通道失败 {}", e.getMessage());
+        }
+    }
+
+    @Test
+    public void receiveTest() {
+        try (DatagramChannel receiveChannel = DatagramChannel.open()) {
+            InetSocketAddress receiveAddress = new InetSocketAddress("127.0.0.1", 9999);
+            // 绑定地址
+            receiveChannel.bind(receiveAddress);
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            while (true) {
+                buffer.clear();
+                SocketAddress socketAddress = receiveChannel.receive(buffer);
+                log.info("socketAddress：{}", socketAddress);
+                buffer.flip();
+                log.info("接收到数据：{}", StandardCharsets.UTF_8.decode(buffer));
+            }
+        } catch (Exception e) {
+            log.error("打开通道失败 {}", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testConnect() {
+        try (DatagramChannel connChannel = DatagramChannel.open()) {
+            connChannel.bind(new InetSocketAddress(9999));
+            connChannel.connect(new InetSocketAddress("127.0.0.1", 9999));
+            connChannel.write(ByteBuffer.wrap("连接测试数据".getBytes(StandardCharsets.UTF_8)));
+            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            while (true) {
+                buffer.clear();
+                connChannel.read(buffer);
+                buffer.flip();
+                log.info("接收到数据：{}", StandardCharsets.UTF_8.decode(buffer));
+            }
+        } catch (Exception e) {
+            log.error("打开通道失败 {}", e.getMessage());
+        }
+    }
+
+}
+```
+## 5. Scatter 和 Gather
+
+> Java NIO 开始支持 scatter/gather，scatter/gather 用于描述从 Channel 中读取或者写入到 Channel的操作
+>
+> **分散(scatter)**从 Channel 中读取是指在读操作时将读取的数据写入多个 buffer中。因此，Channel将从 Channel中读取的数据“分散(scatter)”到多个Buffer中。
+>
+> **聚集(gather)**写入 Channel是指在写操作时将多个 buffer 的数据写入同一个Channel，因此，Channel将多个Buffer中的数据“聚集(gather)”后发送到Channel。
+>
+> scatter/gather 经常用于需要将传输的数据分开处理的场合，例如传输一个由消息头和消息体组成的消息，你可能会将消息体和消息头分散到不同的 buffer 中，这样你可以方便的处理消息头和消息体。“
+
+### 1. Scattering Reades
+
+> Scattering Reades是指数据从一个channel读取到多个buffer中.
+>
+> 注意 buffer 首先被插入到数组，然后再将数组作为 channel.read( 的输入参数。read()方法按照 buffer 在数组中的顺序将从 channel 中读取的数据写入到 buffer，当-个 buffer 被写满后，channel 紧接着向另一个 buffer 中写
+>
+> Scattering Reads 在移动下一个 buffer 前，必须填满当前的 buffer，这也意味着它不适用于动态消息(译者注:消息大小不固定)。换句话说，如果存在消息头和消息体消息头必须完成填充(例如128byte)，Scattering Reads才能正常工作。
+
+```mermaid
+graph LR
+C[Channel] --> B1[Buffer]
+C --> B2[Buffer]
+C --> B3[Buffer]
+```
+
+```java
+@Test
+public void scatteringReadsTest() {
+    try(FileChannel fileChannel = new RandomAccessFile(filePath, "rw").getChannel()) {
+        ByteBuffer buffer1 = ByteBuffer.allocate(12);
+        ByteBuffer buffer2 = ByteBuffer.allocate(16);
+        ByteBuffer[] buffers = {buffer1, buffer2};
+        long read;
+        while ((read = fileChannel.read(buffers)) != -1) {
+            fileChannel.read(buffers);
+            buffer1.flip();
+            buffer2.flip();
+            log.info("buffer1 {}", StandardCharsets.UTF_8.decode(buffer1));
+            log.info("buffer2 {}", StandardCharsets.UTF_8.decode(buffer2));
+            buffer1.clear();
+            buffer2.clear();
+        }
+    } catch (Exception e) {
+        log.error("读取文件失败 {}", e.getMessage());
+    }
+}
+```
+
+
+
+### 2. Gathering Writes
+
+> Gathering Writes是指将多个Buffer的数据写入到一个Channel中.
+>
+> buffers 数组是 write()方法的入参，write()方法会按照 buffer 在数组中的顺序，将数据写入到 channel，注意只有 position 和 limit 之间的数据才会被写入。因此，如果-个 buffer 的容量为 128byte，但是仅仅包含 58byte 的数据，那么这 58byte 的数据将被写入到 channel中。因此与 Scattering Reads相反，Gathering Writes 能较好的处理动态消息.
+
+```mermaid
+graph LR
+B1[Buffer] --> C[Channel]
+B2[Buffer] --> C
+B3[Buffer] --> C
+```
+
+````java
+@Test
+public void gatheringWritesTest() {
+    try(FileChannel fileChannel = new RandomAccessFile(filePath, "rw").getChannel()) {
+        ByteBuffer buffer1 = ByteBuffer.wrap("Buffer1写入了一些数据11".getBytes(StandardCharsets.UTF_8));
+        ByteBuffer buffer2 = ByteBuffer.wrap("Buffer2写入了一些数据2222".getBytes(StandardCharsets.UTF_8));
+        ByteBuffer[] buffers = {buffer1, buffer2};
+        fileChannel.write(buffers);
+    } catch (Exception e) {
+        log.error("读取文件失败 {}", e.getMessage());
+    }
+}
+````
+
+
 
 # 3. Buffer
 
+> Java NIO 中的 Buffer 用于和 NIO 通道进行交互。数据是从通道读入缓冲区，从缓冲区写入到通道中的。
+>
+> 缓冲区本质上是一块可以写入数据，然后可以从中读取数据的内存。这块内存被包装成 NIO Buffer 对象，并提供了一组方法，用来方便的访问该块内存。缓冲区实际上是一个容器对象，更直接的说，其实就是一个数组，在 NIO 库中，所有数据都是用缓冲区处理的。在读取数据时，它是直接读到缓冲区中的;在写入数据时，它也是写入到缓冲区中的;任何时候访问 NIO 中的数据，都是将它放到缓冲区中。而在面向流1/0系统中，所有数据都是直接写入或者直接将数据读取到 Stream 对象中。
+>
+> 在 NIO 中，所有的缓冲区类型都继承于抽象类 Buffer，最常用的就是 ByteBuffer对于 Java 中的基本类型，基本都有一个具体 Buffer 类型与之相对应。
+
+```mermaid
+graph TD
+B[Buffer] -->Byte[ByteBuffer]
+B --> FloatBuffer
+B --> LongBuffer
+B --> DoubleBuffer
+B --> IntBuffer
+B --> CharBuffer
+Byte --> HeapByteBuffer
+Byte --> MappedByteBuffer
+
+```
+
+
+
+## 1. 基本用法
+
+> 一般分为四个步骤
+>
+> 1. 写入数据到`Buffer`
+> 2. 调用`flip()`方法
+> 3. 从`Buffer`读取数据
+> 4. 调用`clear()`或者`compact()`方法
+
+当向 buffer 写入数据时，`buffer` 会记录下写了多少数据。一旦要读取数据，需要通过`flip()`方法将 `Buffer` 从写模式切换到读模式。在读模式下，可以读取之前写入到 `buffer`的所有数据。一旦读完了所有的数据，就需要清空缓冲区，让它可以再次被写入。有两种方式能清空缓冲区:调用 `clear()`或 `compact()`方法。`clear()`方法会清空整个缓冲区。`compact()`方法只会清除已经读过的数据。任何未读的数据都被移到缓冲区的起始处，新写入的数据将放到缓冲区未读数据的后面。
+
+```java
+@Test
+public void bufferReadTest () {
+    StringBuilder content = new StringBuilder();
+    try (RandomAccessFile randomAccessFile = new RandomAccessFile(filePath, "rw");
+         FileChannel channel = randomAccessFile.getChannel()) {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(128);
+        int read;
+        while ((read = channel.read(byteBuffer)) != -1) {
+            byteBuffer.flip();
+            while (byteBuffer.hasRemaining()) {
+                byte[] bytes = new byte[byteBuffer.remaining()];
+                byteBuffer.get(bytes);
+                String str = new String(bytes, StandardCharsets.UTF_8);
+                log.info("读取到数据: {}", str);
+                //content.append(str);
+            }
+            byteBuffer.clear();
+        }
+    } catch (Exception e) {
+        log.info("读取文件失败 {}", e.getMessage());
+    }
+    // 读取完所有数据后打印字符串内容
+    log.info("文件内容：{}", content);
+}
+```
+
+```java
+@Test
+public void intBufferTest() {
+    IntBuffer buffer = IntBuffer.allocate(8);
+
+    for (int i = 0; i < buffer.capacity(); i++) {
+        buffer.put(2 * (i + 1));
+    }
+    buffer.flip();
+    while (buffer.hasRemaining()) {
+        log.info("{}", buffer.get());
+    }
+}
+```
+
+## 2. 重要属性 capacity position limit
+
+>position 和 limit 的含义取决于 Buffer 处在读模式还是写模式。不管 Buffer 处在什么模式，capacity 的含义总是一样的。
+
+![image-20240924170324899](http://upyuncdn.lesscoding.net/image-20240924170324899.png)
+
+### 1. Capacity
+
+作为一个内存块，Buffer有一个固定的大小值，也叫“capacity”.你只能往里写capacity 个byte、long，char 等类型。一旦 Buffer 满了，需要将其清空(通过读数据或者清除数据)才能继续写数据往里写数据。
+
+### 2. position
+
+1. <font color=red>写数据到 Buffer时</font>，position 表示写入数据的当前位置，position 的初始值为0。当一个 byte、long 等数据写到 Buffer后， position 会向下移动到下一个可插入数据的 Buffer 单元。position 最大可为 capacity-1(因为 position 的初始值为0）
+2. <font color=red>读数据到 Buffer时</font>，position 表示读入数据的当前位置，如 position=2 时表示已开始读入了3个byte，或从第3个byte 开始读取。通过 ByteBuffer.flip()切换到读模式时 position 会被重置为 0，当 Buffer 从 position 读入数据后，position 会下移到下一个可读入的数据 Buffer 单元。
+
+### 3. limit
+
+1. <font color=red>写数据时</font>，limit 表示可对 Buffer 最多写入多少个数据。写模式下，limit 等于Buffer的 capacity。
+
+2. <font color=red>读数据时</font>，limit 表示 Buffer 里有多少可读数据(not nul 的数据)，因此能读到之前写入的所有数据(limit 被设置成已写数据的数量，这个值在写式下就是position
+
+## 3. Buffer分配和写数据
+
+1. Buffer分配
+
+> 通过`allocate()`方法进行分配
+
+2. 向Buffer写数据
+
+```java
+ByteBuffer buffer = ByteBuffer.allocate(1024);
+channel.read(buffer);
+buffer.put("123");
+```
+
+3. flip方法
+
+> flip 方法将 Buffer 从写模式切换到读模式。调用 fip()方法会将 position 设回0，并将 limit 设置成之前 position 的值。换句话说，position 现在用于标记读的位置limit 表示之前写进了多少个 byte、char等(现在能读取多少个 byte、char等)。
+
+## 4. 从Buffer中读取数据
+
+1. 读取到Channel
+
+```java
+ByteBuffer buffer = ByteBuffer.allocate(8);
+buffer.put("12345678".getBytes());
+inChannel.write(buffer)
+```
+
+2. 使用get读取
+
+```java
+log.info("{}", (char)buffer.get());
+```
+
+## 5. 常用方法
+
+### 1、 rewind
+
+> Buffer.rewind()将 position 设回0，所以你可以重读 Buffer 中的所有数据。limit 保持不变，仍然表示能从 Buffer中读取多少个元素(byte、char等)。
+
+### 2. clear和compact
+
+> 一旦读完 Buffer 中的数据，需要让 Buffer 准备好再次被写入。可以通过 clear()或compact()方法来完成。
+>
+> 如果调用的是 clear()方法，position 将被设回0，limit 被设置成 capacity 的值。换句话说，Buffer 被清空了。Buffer 中的数据并未清除，只是这些标记告诉我们可以从哪里开始往 Buffer 里写数据。
+>
+> 如果 Buffer 中有一些未读的数据，调用 ciear()方法，数据将“被遗忘”意味着不再有任何标记会告诉你哪些数据被读过，哪些还没有。
+>
+> 如果 Buffer 中仍有未读的数据，且后续还需要这些数据，但是此时想要先先写些数据，那么使用 compact()方法。
+>
+> compact()方法将所有未读的数据拷贝到 Buffer 起始处。然后将 position 设到最后一个未读元素正后面。limit 属性依然像 clear()方法一样，设置成 capacity。现在Buffer 准备好写数据了，但是不会覆盖未读的数据。
+
+### 3.  mark和reset
+
+> 通过调用 Buffer.mark()方法，可以标记 Buffer 中的一个特定 position。之后可以通过调用 Buffer.reset()方法恢复到这个 position。
+
+```java
+buffer.mark();
+buffer.get();
+buffer.reset();
+```
+
+## 6. 缓冲区操作
+
+### 1. 缓冲区分片
+
+> 在 NIO 中，除了可以分配或者包装一个缓冲区对象外，还可以根据现有的缓冲区对象来创建一个子缓冲区，即在现有缓冲区上切出一片来作为一个新的缓冲区，但现有的缓冲区与创建的子缓冲区在底层数组层面上是数据共享的，也就是说，子缓冲区相当于是现有缓冲区的一个视图窗口。调用 slice()方法可以创建一个子缓冲区。
+
+```java
+@Test
+public void sliceTest() {
+    IntBuffer buffer = IntBuffer.allocate(16);
+    for (int i = 0; i < buffer.capacity(); i++) {
+        buffer.put(i);
+    }
+    // 创建子缓冲区
+    buffer.position(3);
+    buffer.limit(9);
+    IntBuffer slice = buffer.slice();
+    // 改变子缓冲区的内容
+    for (int i = 0; i < slice.capacity(); i++) {
+        int num = slice.get();
+        slice.put(i, -num);
+    }
+
+    buffer.position(0);
+    buffer.limit(buffer.capacity());
+
+    while (buffer.hasRemaining()) {
+        log.info("{}", buffer.get());
+    }
+}
+// 0 1 2 -3 -4 -5 -6 -7 -8 9 10 11 12 13 14 15
+```
+
+### 2. 只读缓冲区
+
+> 只读缓冲区非常简单，可以读取它们，但是不能向它们写入数据。可以通过调用缓冲区的 `asReadOnlyBuffer()`方法，将任何常规缓冲区转 换为只读缓冲区，这个方法返回一个与原缓冲区完全相同的缓冲区，并与原缓冲区共享数据，只不过它是只读的。如果原缓冲区的内容发生了变化，只读缓冲区的内容也随之发生变化
+
+```java
+@Test
+public void readOnlyTest() {
+    IntBuffer buffer = IntBuffer.allocate(16);
+
+    for (int i = 0; i < buffer.capacity(); i++) {
+        buffer.put(i);
+    }
+
+    IntBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
+
+    for (int i = 0; i < buffer.capacity(); i++) {
+        int num = buffer.get(i);
+        buffer.put(i, -num);
+    }
+    readOnlyBuffer.position(0);
+    readOnlyBuffer.limit(readOnlyBuffer.capacity());
+
+    while (readOnlyBuffer.hasRemaining()) {
+        log.info("{}", readOnlyBuffer.get());
+    }
+}
+```
+
+### 3. 直接缓冲区
+
+> 直接缓冲区是为加快 I/O 速度，使用一种特殊方式为其分配内存的缓冲区，JDK文档中的描述为:给定一个直接字节缓冲区，Java虚拟机将尽最大努力直接对它执行本机I/0 操作。也就是说，它会在每一次调用底层操作系统的本机 I/O 操作之前(或之后)尝试避免将缓冲区的内容拷贝到一个中间缓冲区中 或者从一个中间缓冲区中拷贝数据。要分配直接缓冲区，需要调用 allocateDirect()方法，而不是 allocate()方法，使用方式与普通缓冲区并无区别。
+
+```java
+@Test
+public void allocateDirectTest() {
+    try (FileInputStream fileInputStream = new FileInputStream(filePath);
+         FileChannel inChannel = fileInputStream.getChannel();
+         FileOutputStream fileOutputStream = new FileOutputStream(filePath2);
+         FileChannel outChannel = fileOutputStream.getChannel()
+    ){
+        ByteBuffer buffer = ByteBuffer.allocateDirect(1024);
+        while (true) {
+            buffer.clear();
+            int read = inChannel.read(buffer);
+            if (read == -1) {
+                break;
+            }
+            buffer.flip();
+            outChannel.write(buffer);
+        }
+
+    } catch (IOException e) {
+        log.error("{} ", e.getMessage());
+    }
+
+}
+```
+
+
+
+### 4. 内存映射文件
+
+> 内存映射文件 I/O是一种读和写文件数据的方法，它可以比常规的基于流或者基于通道的 I/O 快的多。内存映射文件 I/O 是通过使文件中的数据出现为 内存数组的内容来完成的，这其初听起来似乎不过就是将整个文件读到内存中，但是事实上并不是这样。一般来说，只有文件中实际读取或者写入的部分才会映射到内存中。
+
+```java
+/**
+ * 内存映射文件
+ */
+@Test
+public void memoryMappingTest() {
+    int start = 0;
+    int size = 256;
+    try (RandomAccessFile raf = new RandomAccessFile(filePath, "rw")) {
+        FileChannel channel = raf.getChannel();
+        MappedByteBuffer map = channel.map(FileChannel.MapMode.READ_WRITE, start, size);
+        map.put(0, (byte) 'a');
+        map.put(255, (byte) 'b');
+    } catch (Exception e) {
+        log.error("memoryMapping Error {}", e.getMessage());
+    }
+
+}
+```
+
 # 4. Selector
 
+## 1. 简介
+
+### 1. Selector和Channel的关系
+
+> Selector 一般称 为选择器，也可以翻译为 多路复用器 。它是 Java NIO 核心组件中的一个，用于检查一个或多个 NIO Channel(通道)的状态是否处于可读、可写。如此可以实现单线程管理多个 channels,也就是可以管理多个网络链接。
+>
+> ```mermaid
+> graph TD
+> S[Selector] --轮询--> C1[Channel]
+> S --轮询--> C2[Channel]
+> S --轮询--> C3[Channel]
+> S --轮询--> C4[Channel]
+> S --轮询--> C5[Channel]
+> ```
+>
+> 使用 Selector 的好处在于: 使用更少的线程来就可以来处理通道了，相比使用多个线程，避免了线程上下文切换带来的开销。
+
+### 2. 可选通道（SelectableChannel）
+
+1. 不是所有的 Channel都可以被 Selector 复用的。比方说，FileChannel就不能被选择器复用。判断一个 Channel能被 Selecter 复用，有一个前提:判断他是否继承了一个抽象类 SelectableChannel。如果继承了 SelectableChannel，则可以被复用，否则不能.
+
+2. SelectableChannel类提供了实现通道的可选择性所需要的公共方法。它是所有支持就绪检查的通道类的父类。所有 socket通道，都继承了SelectableChannel类都是可选择的，包括从管道(Pipe)对象的中获得的通道。而 FileChannel类，没有继承 SelectableChannel，因此是不是可选通道。
+
+3. 一个通道可以被注册到多个选择器上，但对每个选择器而言只能被注册一次。通道和选择器之间的关系，使用注册的方式完成。SelectableChannel可以被注册到Selector 对象上，在注册的时候，需要指定通道的哪些操作，是Selector 感兴趣的。
+
+```mermaid
+graph TD
+T[Thread] --> S[Selector]
+S --> SSC[ServerSocket Channel]
+S --> SC[Socket Channel]
+S --> SC1[Socket Channel]
+```
+
+### 3. Channel注册到Selector
+
+1. 使用Channel.regirter(Selector sel，int ops)方法，将一个通道注册到一个选择器时。第一个参数，指定通道要注册的选择器。第二个参数指定选择器需要查询的通道操作。
+2. 可以供选择器查询的通道操作，从类型来分，包括以下四种,
+
+	- 可读`SelectionKey.OP_READ`
+	- 可写`SelectionKey.OP_WRITE`
+	- 连接`SelectionKey.OP_CONNECT`
+	- 接收`SelectionKey.OP_ACCEPT`
+	
+	> 如果 Selector 对通道的多操作类型感兴趣，可以用“位或”操作符来实现
+	>
+	> ```java
+	> int key = SelectionKey.OP_READ | SelectionKey.OP_WRITE ;
+	> ```
+
+3. 选择器查询的不是通道的操作，而是通道的某个操作的一种就绪状态。什么是操作的就绪状态?一旦通道具备完成某个操作的条件，表示该通道的某个操作已经就绪，就可以被 Selector 查询到，程序可以对通道进行对应的操作。比方说，某个SocketChannel通道可以连接到一个服务器，则处于“连接就绪”(`OP_CONNECT`)。再比方说，一个ServerSocketChannel服务器通道准备好接收新进入的连接，则处于“接收就绪”(`OP_ACCEPT`)状态。还比方说，一个有数据可读的通道，可以说是“读就绪”(`OP_READ`)。一个等待写数据的通道可以说是“写就绪”(`OP_WRITE`)。
+
+### 4. 选择键(SelectionKey)
+
+1. Channel注册到后，并且一旦通道处于某种就绪的状态，就可以被选择器查询到。这个工作，使用选择器Selector的select()方法完成。select方法的作用，对感兴趣的通道操作，进行就绪状态的查询
+2. Selector 可以不断的査询 Channel中发生的操作的就绪状态。并且挑选感兴趣的操作就绪状态。一旦通道有操作的就绪状态达成，并且是Selector 感兴趣的操作就会被 Selector 选中，放入选择键集合中。
+3. 一个选择键，首先是包含了注册在 Selector 的通道操作的类型，比方说`SelectionKey.OP_READ`。也包含了特定的通道与特定的选择器之间的注册关系。
+4. 选择键的概念，和事件的概念比较相似。一个选择键类似监听器模式里边的一个事件。由于 Selector 不是事件触发的模式，而是主动去查询的式，所以不叫事件Event，而是叫 SelectionKey选择键，
+
+## 2. Selector使用
+
+1. 创建Selector
+
+```java
+Selector open = Selector.open();
+```
+
+2. 注册Channel到Selector
+
+> 1. 与 Selector 一起使用时，<font color=red>Channel必须处于非阻塞模式</font>下，否则将抛出异常`IllegalBlockingModeException`。这意味着，FileChannel不能与 Selector 一起使用，因为 FileChanne!不能切换到非阻塞模式，而套接字相关的所有的通道都可以
+> 2. 一个通道，并没有一定要支持所有的四种操作。比如服务器通道ServersocketChannel支持 Accept 接受操作，而 SocketChannel,客户端通道则不支持。可以通过通道上的 validOps()方法，来获取特定通道下所有支持的操作集合。
+
+```java
+@Test
+public void createTest() {
+    // 创建一个Selector
+    try(Selector selector = Selector.open();
+        ServerSocketChannel serverSocketChannel= ServerSocketChannel.open()) {
+        // 非阻塞模式
+        serverSocketChannel.configureBlocking(false);
+        // 绑定端口
+        serverSocketChannel.bind(new InetSocketAddress(9999));
+        // 注册到selector
+        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT, serverSocketChannel.validOps());
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
+
+## 3. 轮训查询就绪操作
+
+1. 通过 Selector的 select()方法，可以查询出已经就绪的通道操作，这些就绪的状态集合，包存在一个元素是 selectionKey,对象的 Set 集合中。
+
+2. 下面是 Selector几个重载的査询 select()方法:
+
+   - select():阻塞到至少有一个通道在你注册的事件上就绪了。
+
+   - select(long timeout):和 select()一样，但最长阻塞事件为 timeout 毫秒。
+
+   - selectNow():非阻塞，只要有通道就绪就立刻返回。
+
+select() 方法返回的 int值，表示有多少通道已经就绪，更准确的说，是自前一次select方法以来到这一次 select 方法之间的时间段上，有多少通道变成就绪状态。
+
+例如:首次调用 select()方法，如果有一个通道变成就绪状态，返回了1，若再次调用select()方法，如果另一个通道就绪了，它会再次返回1。如果对第一个就绪的channel没有做任何操作，现在就有两个就绪的通道，但在每次select()方法调用之间，只有一个通道就绪了。
+
+一旦调用 select()方法，并且返回值不为0时，在 Selector 中有一个selectedKeys()方法，用来访问已选择键集合，迭代集合的每一个选择键元素，根据就绪操作的类型完成对应的操作
+
+```java
+Set selectedKeys = selector.selectedKeys();
+```
+
+## 4. 停止选择
+
+选择器执行选择的过程，系统底层会依次询问每个通道是否已经就绪，这个过程可能会造成调用线程进入阻塞状态,那么我们有以下三种方式可以唤醒在 select()方法中阻塞的线程。
+
+1. wakeup()
+
+   >  通过调用 Selector 对象的 wakeup()方法让处在阻塞状态的select()方法立刻返回
+   >
+   > 该方法使得选择器上的第一个还没有返回的选择操作立即返回。如果当前没有进行中的选择操作，那么下一次对 select()方法的一次调用将立即返回。
+
+2. close()方法
+
+   > 通过close()方法关闭Selector
+   >
+   > 该方法使得任何一个在选择操作中阻塞的线程都被唤醒(类似 wakeup())，同时使得注册到该 Selector 的所有 Channel被注销，所有的键将被取消，但是 Channel本身不会关闭
+
+## 5. 客户端和服务端
+
+1. 客户端
+
+```java
+@Test
+public void clientTest() {
+    // 创建通道绑定端口
+    try (SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", 9999))) {
+        socketChannel.configureBlocking(false);
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+
+        buffer.put("hello".getBytes());
+        buffer.flip();
+        socketChannel.write(buffer);
+        buffer.clear();
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
+
+2. 客户端
+
+```java
+@Test
+public void serverTest() {
+    InetSocketAddress remote = new InetSocketAddress(9999);
+    try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
+        serverSocketChannel.configureBlocking(false);
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        serverSocketChannel.bind(remote);
+        Selector selector = Selector.open();
+        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+        while (selector.select() > 0) {
+            Set<SelectionKey> selectionKeys = selector.selectedKeys();
+            Iterator<SelectionKey> iterator = selectionKeys.iterator();
+            while (iterator.hasNext()) {
+                SelectionKey next = iterator.next();
+
+                if (next.isAcceptable()) {
+                    SocketChannel socketChannel = serverSocketChannel.accept();
+                    socketChannel.configureBlocking(false);
+                    socketChannel.register(selector, SelectionKey.OP_READ);
+                } else if (next.isReadable()) {
+                    SocketChannel channel = (SocketChannel) next.channel();
+                    buffer.clear();
+                    channel.read(buffer);
+                    buffer.flip();
+                    log.info("收到消息 {}", new String(buffer.array()));
+                    buffer.clear();
+                    channel.close();
+                } else if (next.isWritable()) {
+                    buffer.rewind();
+                    SocketChannel channel = (SocketChannel) next.channel();
+                    channel.write(buffer);
+                    next.interestOps(SelectionKey.OP_READ);
+                    buffer.clear();
+                }
+                iterator.remove();
+            }
+        }
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
+
 # 5. Pipe和FileLock
+
+## 1. Pipe
+
+> Java NIO 管道是2个线程之间的单向数据连接。Pipe 有一个 source 通道和一个sink 通道。数据会被写到 sink 通道，从 source 通道读取
+
+```mermaid
+graph LR
+ta[ThreadA]
+subgraph Pipe
+sinC[SinkChannel] --> srcC[SourceChannel]
+end
+ta--> sinC
+srcC --> ThreadB
+```
+
+
 
 # 6. 其他
