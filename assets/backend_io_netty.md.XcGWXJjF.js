@@ -1,0 +1,1 @@
+import{_ as e,o as t,c as a}from"./chunks/framework.3IDgao2s.js";const m=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"backend/io/netty.md","filePath":"backend/io/netty.md"}'),n={name:"backend/io/netty.md"};function o(c,r,s,d,i,p){return t(),a("div")}const f=e(n,[["render",o]]);export{m as __pageData,f as default};
