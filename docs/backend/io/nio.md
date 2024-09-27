@@ -1113,6 +1113,514 @@ ta--> sinC
 srcC --> ThreadB
 ```
 
+```java
+@Test
+public void createTest() {
+    try {
+        // 1. 获取管道
+        Pipe pipe = Pipe.open();
+        // 2. 获取管道的写通道
+        Pipe.SinkChannel sink = pipe.sink();
+        // 3. 创建缓冲区
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        buffer.put("hello world".getBytes());
+        buffer.flip();
+        // 4. 写入数据
+        sink.write(buffer);
+        // 5. 获取管道的读通道
+        Pipe.SourceChannel source = pipe.source();
+        // 6. 创建缓冲区
+        ByteBuffer buffer1 = ByteBuffer.allocate(1024);
+        // 7. 读取数据
+        source.read(buffer1);
+        // 8. 输出数据
+        log.info("buffer1: {}", new String(buffer1.array()));
+        // 9. 关闭通道
+        source.close();
+        sink.close();
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
 
+## 2. FileLock
+
+### 1. 简介
+
+> 文件锁在 OS 中很常见，如果多个程序同时访问、修改同一个文件，很容易因为文件数据不同步而出现问题。给文件加一个锁，同一时间，只能有一个程序修改此文件，或者程序都只能读此文件，这就解决了同步问题。
+>
+> 文件锁是进程级别的，不是线程级别的。文件锁可以解决多个进程并发访问、修改同一个文件的问题，但不能解决多线程并发访问、修改同一文件的问题。“使用文件锁时，同一进程内的多个线程，可以同时访问、修改此文件。
+>
+> 文件锁是当前程序所属的 JVM 实例持有的，一旦获取到文件锁(对文件加锁)，要调用 release()，或者关闭对应的 FileChannel对象，或者当前JVM 退出，才会释放这个锁。
+>
+> 一旦某个进程(比如说 JVM 实例)对某个文件加锁，则在释放这个锁之前，此进程不能再对此文件加锁，就是说 JVM 实例在同一文件上的文件锁是不重叠的(进程级别不能重复在同一文件上获取锁)。
+
+### 2. 分类
+
+- <font color=red>排它锁</font>:又叫独占锁。对文件加排它锁后，该进程可以对此文件进行读写，该进程独占此文件，其他进程不能读写此文件，直到该进程释放文件锁。
+- <font color=red>共享锁</font>:某个进程对文件加共享锁，其他进程也可以访问此文件，但这些进程都只能读此文件，不能写。线程是安全的。只要还有一个进程持有共享锁，此文件就只能读，不能写。
+
+```java
+@Slf4j
+public class FileLockTest {
+    private final String filePath = "E:/private/ioDemo/nio/raf.txt";
+
+    @Test
+    public void readFile() {
+        // 1. 创建FileChannel
+        try (RandomAccessFile randomAccessFile = new RandomAccessFile(filePath, "rw");
+             FileChannel channel = randomAccessFile.getChannel()) {
+            // 获取锁
+            FileLock fileLock = channel.lock();
+            // 释放锁
+            fileLock.release();
+            
+        } catch (Exception e) {
+            log.error("FileLock.readFile error", e);
+        }
+    }
+}
+```
+
+### 3. 获取锁的方式
+
+> ==lock 和 tryLock 的区别==
+>
+> lock是阻塞式的，如果未获取到文件锁，会一直阻塞当前线程，直到获取文件锁
+>
+> tryLock和lock 的作用相同，只不过 tryLock 是非阻塞式的，tryLock 是尝试获取文件锁，获取成功就返回锁对象，否则返回 null，不会阻塞当前线程。“
+
+| 序号 | 方法                                              | 描述                                                         |
+| ---- | ------------------------------------------------- | ------------------------------------------------------------ |
+| 1    | `lock`()                                          | 对整个文件加锁，默认排它锁                                   |
+| 2    | `lock(long position, long size, boolean shared)`  | 自定义加锁方式，前两个参数制定加锁的部分（可以对文件部分加锁），第三个参数制定是否是共享锁 |
+| 3    | `tryLock()`                                       | 对整个文件加锁，默认为排它锁                                 |
+| 4    | `tryLock(long position, long size,booean shared)` | 自定义加锁方式。如果指定为共享锁，则其它进程可读此文件，所有进程均不能写此文件，如果某进程试图对此文件进行写操作，会抛出异常。 |
 
 # 6. 其他
+
+## 1. Path
+
+Java Path 接口是 Java NI0 更新的一部分，同 Java NIO 一起已经包括在 Java6 和Java7 中。Java Path 接口是在Java7 中添加到Java NIO 的。Path 接口位于java.nio.iie包中，所以 Path 接口的完全限定名称为 java.nio.file.Path。
+
+Java Path 实例表示文件系统中的路径。一个路径可以指向一个文件或一个目录。路径可以是绝对路径，也可以是相对路径。绝对路径包含从文件系统的根目录到它指向的文件或目录的完整路径。相对路径包含相对于其他路径的文件或目录的路径。
+
+在许多方面，java.nio.file.Path 接口类似于java.io.File 类，但是有一些差别。不过在许多情况下，可以使用 Path 接口来替换 File 类的使用。
+
+```java
+@Test
+public void pathTest() {
+    // Path path = Paths.get("E:/private/ioDemo/nio/raf.txt");
+    // Path path2 = Paths.get("E:/private/ioDemo","nio/raf.txt");
+    String pathStr = "E:\\private\\ioDemo\\nio\\...\\raf.txt";
+    Path path3 = Paths.get(pathStr);
+    log.info("{}", path3);
+    // 标准化路径
+    log.info("{}", path3.normalize());
+}
+```
+
+## 2. Files
+
+> Java NlO Files 类(java.nio.file.Fies)提供了几种操作文件系统中的文件的方法。以下内容介绍 Java NlO Files 最常用的一些方法。java.nio.file.Files 类与java.nio.file.Path 实例一起工作，因此在学习 Files 类之前，需要先了解 Path 类。
+
+```java
+@Test
+public void filesTest() throws IOException {
+    Path path = Paths.get("E:/private/ioDemo/nio_itcast");
+    // 创建目录
+    Path directories = Files.createDirectories(path);
+
+    // 文件拷贝
+    Path sourcePath = Paths.get(filePath);
+    Path copy2Path = Paths.get(filePath2);
+    //Files.copy(sourcePath, copy2Path);
+    // 存在则覆盖
+    Files.copy(sourcePath, copy2Path, StandardCopyOption.REPLACE_EXISTING);
+
+    // 删除
+    Files.delete(copy2Path);
+    log.info("删除结果 {}", Files.deleteIfExists(copy2Path));
+    // 移动
+    Files.move(sourcePath, copy2Path);
+}
+```
+
+## 3. AsynchronousFileChannel
+
+> 异步写入的通道
+
+### 1.通过Futuer读取数据
+
+```java
+@Test
+public void asynchronousFileChannelTest() throws IOException {
+    //1 创建AsynchronousFileChannel
+    AsynchronousFileChannel asyncFileChannel = AsynchronousFileChannel.open(Paths.get(filePath), StandardOpenOption.READ);
+    // 2 创建Buffer
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    //3 调用channel的read方法得到Future
+    Future<Integer> future = asyncFileChannel.read(buffer, 0);
+    //4 判断是否完成 isDone,返回true
+    while (!future.isDone()) ;
+    //5 读取数据到buffer里面
+    buffer.flip();
+    byte[] data = new byte[buffer.limit()];
+    buffer.get(data);
+    log.info("{}", new String(data, StandardCharsets.UTF_8));
+    buffer.clear();
+}
+```
+
+### 2. 使用ComplationHandler读取
+
+```java
+@Test
+public void asynchronousFileChannelCompletionTest() throws IOException {
+    //1 创建AsynchronousFileChannel
+    AsynchronousFileChannel asyncFileChannel = AsynchronousFileChannel.open(Paths.get(filePath), StandardOpenOption.READ);
+    // 2 创建Buffer
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    //3 调用channel的read方法得到Future
+    asyncFileChannel.read(buffer, 0, buffer, new CompletionHandler<Integer, ByteBuffer>() {
+        @Override
+        public void completed(Integer result, ByteBuffer attachment) {
+            System.out.println("result:" + result);
+            attachment.flip();
+            byte[] data = new byte[attachment.limit()];
+            attachment.get(data);
+            System.out.println(new String(data));
+            attachment.clear();
+        }
+
+        @Override
+        public void failed(Throwable exc, ByteBuffer attachment) {
+            log.error("读取失败 {}", exc.getCause().getMessage());
+        }
+    });
+
+}
+```
+
+### 3. 使用Future写数据
+
+```java
+@Test
+public void writeAsyncFileFuture() throws IOException {
+    //1 创建AsynchronousFileChannel
+    AsynchronousFileChannel asyncFileChannel = AsynchronousFileChannel.open(Paths.get(filePath), StandardOpenOption.WRITE);
+    // 2 创建Buffer
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    // 3. 写入
+    buffer.put("\n\nHelloWorld".getBytes());
+    buffer.flip();
+    Future<Integer> future = asyncFileChannel.write(buffer, asyncFileChannel.size());
+    while (!future.isDone()) ;
+    buffer.clear();
+    System.out.println("write over");
+}
+```
+
+### 4. 使用CompletionHandler写数据
+
+```java
+@Test
+public void writeAsyncFileCompletionHandler() throws IOException {
+    //1 创建AsynchronousFileChannel
+    AsynchronousFileChannel asyncFileChannel = AsynchronousFileChannel.open(Paths.get(filePath), StandardOpenOption.WRITE);
+    // 2 创建Buffer
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    // 3. 写入
+    buffer.put("\n\nHelloWorld".getBytes());
+    buffer.flip();
+    asyncFileChannel.write(buffer, asyncFileChannel.size(), buffer, new CompletionHandler<Integer, ByteBuffer>() {
+        @Override
+        public void completed(Integer result, ByteBuffer attachment) {
+            System.out.println("写入完成");
+        }
+
+        @Override
+        public void failed(Throwable exc, ByteBuffer attachment) {
+            log.error("出现错误 {}", exc.getMessage());
+            exc.printStackTrace();
+        }
+    });
+
+}
+```
+
+# 7. 聊天室实例
+
+1. 服务端
+
+```java
+package net.lesscoding.nio.chat.server;
+
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.Set;
+
+/**
+* @author eleven
+* @date 2024/9/27 13:47
+* @apiNote
+*/
+@Slf4j
+public class ChatServer {
+public void startServer() throws IOException {
+    // 1. 创建Selector选择器
+    Selector selector = Selector.open();
+    // 2. 创建ServerSocketChannel通道
+    ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+    // 3. 为channel通道绑定端口
+    serverSocketChannel.bind(new InetSocketAddress(9999));
+    serverSocketChannel.configureBlocking(false);
+    // 4. 循环等待新链接接入
+    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+    log.info("服务器启动成功");
+    for (; ; ) {
+        int readChannels = selector.select();
+        if (readChannels == 0) {
+            continue;
+        }
+        Set<SelectionKey> selectionKeys = selector.selectedKeys();
+        for (Iterator<SelectionKey> iterator = selectionKeys.iterator(); iterator.hasNext(); ) {
+            SelectionKey selectionKey = iterator.next();
+            if (selectionKey.isAcceptable()) {
+                acceptHandler(selector, serverSocketChannel);
+            } else if (selectionKey.isReadable()) {
+                readHandler(selectionKey, selector);
+            }
+
+        }
+        //// 移除当前的数据
+        //iterator.remove();
+    }
+    // 5. 根据就绪装填，调用对应方法实现具体逻辑
+    // 5.1 如果为accept
+    // 5.2 如果为read
+}
+
+/**
+ * 处理read事件
+ *
+ * @param selectionKey 选择键
+ * @param selector     选择器
+ */
+private void readHandler(SelectionKey selectionKey, Selector selector) throws IOException {
+    // 1. 获取到当前的channel
+    SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
+    // 2. 创建Buffer
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    // 3. 循环读取客户端消息
+    int read;
+    StringBuilder msg = new StringBuilder();
+    while ((read = socketChannel.read(buffer)) > 0) {
+        buffer.flip();
+        msg.append(StandardCharsets.UTF_8.decode(buffer));
+        buffer.clear();
+    }
+    // 4. 重新注册channel到选择器
+    socketChannel.register(selector, SelectionKey.OP_READ);
+    log.info("接收到客户端{}消息：{}", socketChannel.getRemoteAddress(), msg);
+    // 5. 把客户端发送的消息广播到其他客户端
+    if (msg.length() > 0) {
+        broadcast(selector, socketChannel, msg.toString());
+    }
+}
+
+/**
+ * 广播消息给其他客户端
+ *
+ * @param selector      选择器
+ * @param socketChannel 通道
+ * @param string        消息
+ */
+private void broadcast(Selector selector, SocketChannel socketChannel, String string) throws IOException {
+    log.info("广播开始了");
+    // 1. 获取所有注册到选择器上的channel
+    Set<SelectionKey> selectionKeys = selector.selectedKeys();
+    // 2. 循环发送消息
+    for (SelectionKey selectionKey : selectionKeys) {
+        // 获取通道
+        SelectableChannel targetChannel = selectionKey.channel();
+        // 不给自己发消息
+        if (targetChannel instanceof SocketChannel && targetChannel!= socketChannel) {
+            ((SocketChannel)targetChannel).write(StandardCharsets.UTF_8.encode(string));
+        }
+    }
+}
+
+/**
+ * 处理accept事件
+ *
+ * @param selector            选择器
+ * @param serverSocketChannel 服务器通道
+ */
+private void acceptHandler(Selector selector, ServerSocketChannel serverSocketChannel) throws IOException {
+    log.info("有客户端接入");
+    // 1. 接入客户端
+    SocketChannel socketChannel = serverSocketChannel.accept();
+    // 2. 配置非阻塞
+    socketChannel.configureBlocking(false);
+    // 3. 注册到选择器上
+    socketChannel.register(selector, SelectionKey.OP_READ);
+    // 4. 给客户端发送消息
+    socketChannel.write(StandardCharsets.UTF_8.encode("链接服务器成功"));
+}
+
+public static void main(String[] args) {
+    try {
+        new ChatServer().startServer();
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+}
+
+```
+
+2. 客户端
+
+```java
+package net.lesscoding.nio.chat.client;
+
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
+
+/**
+* @author eleven
+* @date 2024/9/27 13:47
+* @apiNote
+*/
+@Slf4j
+public class ChatClient {
+
+public void startClient(String name) throws IOException {
+    // 1. 连接到服务器
+    SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress("127.0.0.1", 9999));
+    // 接收消息
+    receiveMsg(socketChannel);
+    // 2. 发送消息
+    Scanner scanner = new Scanner(System.in);
+    while (scanner.hasNextLine()) {
+        String msg = scanner.nextLine();
+        try {
+            if (msg.length() > 0) {
+                socketChannel.write(StandardCharsets.UTF_8.encode(name + ":" + msg));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+}
+
+private void receiveMsg(SocketChannel socketChannel) throws IOException {
+    Selector selector = Selector.open();
+    socketChannel.configureBlocking(false);
+    socketChannel.register(selector, SelectionKey.OP_READ);
+    new Thread(new ClientThread(selector)).start();
+}
+
+public static void main(String[] args) {
+    try {
+        new ChatClient().startClient("系统");
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+}
+
+```
+
+3. 线程类
+
+```java
+package net.lesscoding.nio.chat.client;
+
+import cn.hutool.core.util.StrUtil;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.Set;
+
+/**
+* @author eleven
+* @date 2024/9/27 17:31
+* @apiNote
+*/
+@Slf4j
+public class ClientThread implements Runnable {
+
+private Selector selector;
+
+public ClientThread(Selector selector) {
+    this.selector = selector;
+}
+
+@Override
+public void run() {
+    try {
+        for (; ; ) {
+            int readChannels = selector.select();
+            if (readChannels == 0) {
+                continue;
+            }
+            Set<SelectionKey> selectionKeys = selector.selectedKeys();
+            for (Iterator<SelectionKey> iterator = selectionKeys.iterator(); iterator.hasNext(); ) {
+                SelectionKey selectionKey = iterator.next();
+                if (selectionKey.isReadable()) {
+                    readHandler(selectionKey, selector);
+                }
+                // 移除当前的数据
+                iterator.remove();
+            }
+        }
+    } catch (Exception e) {
+        log.info("客户端线程异常");
+    }
+
+}
+
+private void readHandler(SelectionKey selectionKey, Selector selector) throws IOException {
+    // 1. 获取到当前的channel
+    SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
+    // 2. 创建Buffer
+    ByteBuffer buffer = ByteBuffer.allocate(1024);
+    // 3. 循环读取客户端消息
+    int read;
+    StringBuilder msg = new StringBuilder();
+    while ((read = socketChannel.read(buffer)) > 0) {
+        buffer.flip();
+        msg.append(StandardCharsets.UTF_8.decode(buffer));
+        buffer.clear();
+    }
+    // 4. 重新注册channel到选择器
+    socketChannel.register(selector, SelectionKey.OP_READ);
+    System.out.println(StrUtil.format("接收到客户端{}消息：{}", socketChannel.getRemoteAddress(), msg));
+}
+}
+
+```
+
