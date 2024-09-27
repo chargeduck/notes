@@ -194,3 +194,35 @@ export default defineConfig({
   base: '/notes/',
 })
 ```
+# 6.添加Mermaid支持
+> 因为本身只有`markdown-it`解析,并不支持`mermaid`语法，所以需要安装另外的依赖
+
+1. 安装依赖
+```shell
+npm i vitepress-plugin-mermaid mermaid -D
+```
+2. 在`config.mts`中添加插件
+> 需要注意的是，使用`vitepress-plugin-mermaid`插件后，需要想原有的`defineConfig`函数变更为`withMermaid`函数.
+并且在`withMermaid`函数中添加`mermaidPlugin`配置
+```js
+// import {defineConfig} from 'vitepress'
+import {withMermaid} from 'vitepress-plugin-mermaid'
+
+// https://vitepress.dev/reference/site-config
+export default withMermaid({
+    base: '/notes/',
+    title: "notes",
+    description: "后端仔的学习笔记",
+    // 开启行号
+    markdown: {
+        lineNumbers: true,
+    },
+    mermaid: {
+        // 配置参考： https://mermaid.js.org/config/setup/modules/mermaidAPI.html#mermaidapi-configuration-defaults
+    },
+    // 自定义样式
+    mermaidPlugin: {
+        class: 'mermaid my-class'
+    },
+})
+```
