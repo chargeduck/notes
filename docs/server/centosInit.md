@@ -7,7 +7,7 @@ Centos服务器，java开发环境初始化搭建 <br/>
 4. [Nginx安装](#_4-nginx安装)
    :::
 
-# 0. Centos换源
+# 0. Centos换源 和切换时区
 > 由于CentOs官方已全面停止维护CentOs Linux项目，
 > 公告指出CentOs 7和8在2024年6月30日停止技术服务支持，
 > 详情见CentOs官方公告。导致CentOs系统源已全面失效，
@@ -64,6 +64,15 @@ If above article doesn't help to resolve this issue please use https://bugs.cent
 则执行下边的命令就可以了
 ```shell
 yum-config-manager --disable epel
+```
+切换时区
+```shell
+# 查询当前的时区
+timedatectl
+# 列出可用时区
+timedatectl list-timezones
+# 设置上海时区
+timedatectl set-timezone Asia/Shanghai
 ```
 # 1. JDK安装
 
@@ -217,24 +226,24 @@ flush privileges;
 
 ```shell
 
-wget https://cdn.mysql.com//Downloads/MySQL-8.4/mysql-8.4.1-1.el7.x86_64.rpm-bundle.tar
+wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.39-1.el7.x86_64.rpm-bundle.tar
 ```
 
 2. 解压缩
 
 ```shell
-tar -xvf mysql-8.4.1-1.el7.x86_64.rpm-bundle.tar 
+tar -xvf mysql-8.0.39-1.el7.x86_64.rpm-bundle.tar
 ```
 
 3. 安装服务
 
 ```shell
-rpm -ivh mysql-community-common-8.4.1-1.el7.x86_64.rpm
-rpm -ivh mysql-community-client-plugins-8.4.1-1.el7.x86_64.rpm
-rpm -ivh mysql-community-libs-8.4.1-1.el7.x86_64.rpm 
-rpm -ivh mysql-community-client-8.4.1-1.el7.x86_64.rpm
-rpm -ivh mysql-community-icu-data-files-8.4.1-1.el7.x86_64.rpm 
-rpm -ivh mysql-community-server-8.4.1-1.el7.x86_64.rpm
+rpm -ivh mysql-community-common-8.0.39-1.el7.x86_64.rpm 
+rpm -ivh mysql-community-client-plugins-8.0.39-1.el7.x86_64.rpm 
+rpm -ivh mysql-community-libs-8.0.39-1.el7.x86_64.rpm  
+rpm -ivh mysql-community-client-8.0.39-1.el7.x86_64.rpm 
+rpm -ivh mysql-community-icu-data-files-8.0.39-1.el7.x86_64.rpm  
+rpm -ivh mysql-community-server-8.0.39-1.el7.x86_64.rpm 
 ```
 4. 查询是否安装
 ```shell
@@ -475,11 +484,8 @@ current_dir=$(pwd)
 if [ "$current_dir" = "/opt/software" ]; then
     echo "当前在 /opt/software 目录"
 else
-    # 判断是否存在 /opt/software 目录
-    if [! -d "/opt/software" ]; then
-        mkdir -p /opt/software
-        echo "创建了 /opt/software 目录"
-    fi
+	mkdir -p /opt/software
+	echo "创建了 /opt/software 目录"
     cd /opt/software
     echo "已切换到 /opt/software 目录"
 fi
@@ -524,7 +530,9 @@ if [ "$install_mysql" = "y" ]; then
     sudo yum install wget
     mkdir mysql
     cd mysql
-    if [ "$system_version" = "8" ]; then
+    echo "是否使用yum安装(输入 y 表示使用，输入其他表示使用wget下载tar包安装)"
+	read yum_install
+    if [ "$yum_install" = "y" ]; then
         # 如果是 CentOS 8，执行以下安装步骤
         wget http://repo.mysql.com/mysql80-community-release-el7-3.noarch.rpm
         rpm -ivh mysql80-community-release-el7-3.noarch.rpm
@@ -533,14 +541,14 @@ if [ "$install_mysql" = "y" ]; then
         service mysqld status
         systemctl enable mysqld.service
     else
-        wget https://cdn.mysql.com//Downloads/MySQL-8.4/mysql-8.4.1-1.el7.x86_64.rpm-bundle.tar
-        tar -xvf mysql-8.4.1-1.el7.x86_64.rpm-bundle.tar
-        rpm -ivh mysql-community-common-8.4.1-1.el7.x86_64.rpm
-        rpm -ivh mysql-community-client-plugins-8.4.1-1.el7.x86_64.rpm
-        rpm -ivh mysql-community-libs-8.4.1-1.el7.x86_64.rpm
-        rpm -ivh mysql-community-client-8.4.1-1.el7.x86_64.rpm
-        rpm -ivh mysql-community-icu-data-files-8.4.1-1.el7.x86_64.rpm
-        rpm -ivh mysql-community-server-8.4.1-1.el7.x86_64.rpm
+        wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.39-1.el7.x86_64.rpm-bundle.tar
+        tar -xvf mysql-8.0.39-1.el7.x86_64.rpm -bundle.tar
+        rpm -ivh mysql-community-common-8.0.39-1.el7.x86_64.rpm 
+        rpm -ivh mysql-community-client-plugins-8.0.39-1.el7.x86_64.rpm 
+        rpm -ivh mysql-community-libs-8.0.39-1.el7.x86_64.rpm 
+        rpm -ivh mysql-community-client-8.0.39-1.el7.x86_64.rpm 
+        rpm -ivh mysql-community-icu-data-files-8.0.39-1.el7.x86_64.rpm 
+        rpm -ivh mysql-community-server-8.0.39-1.el7.x86_64.rpm 
         sudo yum install -y openssl
         sudo yum install -y libaio.so.1
         sudo yum install -y libaio
@@ -578,23 +586,25 @@ if [ "$install_redis" = "y" ]; then
     if [ "$make_test" = "y" ]; then
         make test
     else
-        cd src && make install
-        mkdir /etc/redis/
-        cd ../
-        pwd
-        cp redis.conf /etc/redis/6379.conf
-        file_path="/etc/redis/6379.conf"
-        # 先设置终端输入模式，允许删除和回退
-        sed -i '/daemonize no/daemonize yes/g' "$file_path"
-        sed -i '/bind 127.0.0.1 -::1/#bind 127.0.0.1 -::1/g' "$file_path"
-        sed -i '1044s/requirepass.*/requirepass '$password'/' "$file_path"
-        cp utils/redis_init_script /etc/init.d/redisd
-        chmod +x /etc/init.d/redisd
-        chkconfig --add redisd
-        systemctl start redisd
-        systemctl status redisd
-        echo "修改密码请到 /etc/redis/6379.conf修改 1044行 reuirepass youer_password"
-    fi    
+    	echo "用户选择跳过 make test测试，执行安装流程"  
+    fi
+	cd src && pwd && make install
+	mkdir /etc/redis/
+	cd ../
+	pwd
+	cp redis.conf /etc/redis/6379.conf
+	file_path="/etc/redis/6379.conf"
+	# 先设置终端输入模式，允许删除和回退
+	sed -i '/daemonize no/daemonize yes/g' "$file_path"
+	sed -i '/bind 127.0.0.1 -::1/#bind 127.0.0.1 -::1/g' "$file_path"
+	sed -i '1044s/requirepass.*/requirepass '$password'/' "$file_path"
+	cp utils/redis_init_script /etc/init.d/redisd
+	chmod +x /etc/init.d/redisd
+	chkconfig --add redisd
+	systemctl start redisd
+	systemctl status redisd
+	echo "修改密码请到 /etc/redis/6379.conf修改 1044行 reuirepass youer_password"
+        
 else
     # 输出跳过 Redis 安装的提示
     echo "您选择跳过 Redis 安装"
@@ -633,6 +643,7 @@ if [ "$install_jdk" = "y" ]; then
 fi
 if [ "$install_mysql" = "y" ]; then
     installed_software="$installed_software MySQL"
+    echo "Mysql默认密码为 : $(sudo grep 'temporary password' /var/log/mysqld.log |awk '{print $NF}')" 
 fi
 if [ "$install_redis" = "y" ]; then
     installed_software="$installed_software Redis"
