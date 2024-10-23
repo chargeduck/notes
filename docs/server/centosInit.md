@@ -616,14 +616,16 @@ echo "是否要安装 Nginx？(输入 y 表示安装，输入其他表示跳过)
 read install_nginx
 
 if [ "$install_nginx" = "y" ]; then
-    cd /opt/software
-    mkdir nginx
+    mkdir -p /opt/software/nginx
     cd /opt/software/nginx
-    wget http://nginx.org/download/nginx-1.27.0.tar.gz
-    tar -zxvf nginx.tar.gz
+    yum -y install wget
     yum -y install pcre-devel
     yum -y install openssl openssl-devel
     yum -y install zlib-devel
+    yum -y isntall gcc
+    wget http://nginx.org/download/nginx-1.27.0.tar.gz
+    tar -zxvf nginx-1.27.0.tar.gz
+    cd nginx-1.27.0
     ./configure --prefix=/usr/local/nginx --with-http_ssl_module
     make
     make install

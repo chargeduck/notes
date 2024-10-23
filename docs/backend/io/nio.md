@@ -902,6 +902,22 @@ public void memoryMappingTest() {
 
 # 4. Selector
 
+> ==多路复用==
+>
+> 单线程可以配合 Selector 完成对多个 Channel可读写事件的监控，这称之为多路复用
+>
+> 1. 多路复用仅针对网络 IO、普通文件 IO 没法利用多路复用
+>
+> 2. 如果不用 Selector 的非阻塞模式，线程大部分时间都在做无用功，而 Selector 能够保证
+>
+>    - 有可连接事件时才去连接
+>
+>    -  有可读事件才去读取
+>
+>    -  有可写事件才去写入
+>
+>   限于网络传输能力，Channel 未必时时可写，一旦Channel可写，会触发 Selector 的可写事件
+
 ## 1. 简介
 
 ### 1. Selector和Channel的关系
@@ -1097,6 +1113,154 @@ public void serverTest() {
 }
 ```
 
+## 6. 代码示例
+> 从阻塞模式，到非阻塞轮询，再到Selector
+>
+```java
+/**
+ * 阻塞模式下的ServerSocketChannel
+ */
+@Test
+public void serverSocketChannelTest() {
+    ByteBuffer buffer = ByteBuffer.allocate(16);
+    // 1. 创建一个ServerSocketChannel
+    try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();) {
+
+        // 2. 绑定端口
+        serverSocketChannel.bind(new InetSocketAddress(8080));
+        List<SocketChannel> socketChannels = new ArrayList<>();
+        // 3. 监听连接
+        while (true) {
+            log.info("Connecting...");
+            // 4. 接受连接 accept 会阻塞线程
+            SocketChannel socketChannel = serverSocketChannel.accept();
+            socketChannels.add(socketChannel);
+            // 5. 处理连接
+            log.info("接受到连接：{}", socketChannel);
+            for (SocketChannel channel : socketChannels) {
+                channel.read(buffer);
+                buffer.flip();
+                ByteBufferUtil.debugRead(buffer);
+                buffer.clear();
+            }
+        }
+    } catch (IOException e) {
+        log.error("ServerSocketChannelTest error", e);
+    }
+}
+
+/**
+ * 非阻塞模式下的ServerSocketChannel
+ */
+@Test
+public void botBlockingServerSocketChannelTest() {
+    ByteBuffer buffer = ByteBuffer.allocate(16);
+    // 1. 创建一个ServerSocketChannel
+    try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();) {
+        // 配置非阻塞模式
+        serverSocketChannel.configureBlocking(false);
+        // 2. 绑定端口
+        serverSocketChannel.bind(new InetSocketAddress(8080));
+        List<SocketChannel> channels = new ArrayList<>();
+        // 3. 监听连接
+        while (true) {
+            log.debug("Connecting...");
+            // 4. 接受连接 accept 会阻塞线程
+            SocketChannel socketChannel = serverSocketChannel.accept();
+            if (socketChannel != null) {
+                log.debug("接受到连接：{}", socketChannel);
+                channels.add(socketChannel);
+            }
+            for (SocketChannel channel : channels) {
+                int read = socketChannel.read(buffer);
+                if (read > 0) {
+                    buffer.flip();
+                    ByteBufferUtil.debugRead(buffer);
+                    buffer.clear();
+                }
+            }
+        }
+    } catch (IOException e) {
+        log.error("ServerSocketChannelTest error", e);
+    }
+}
+
+/**
+ * 使用Selector的ServerSocketChannel
+ * 可以避免一直死循环导致CPU占用率太高的问题
+ */
+@Test
+public void selectorServerSocketChannelTest() {
+    ByteBuffer buffer = ByteBuffer.allocate(16);
+    // 1. 创建一个ServerSocketChannel 和 Selector
+    try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+         Selector selector = Selector.open();) {
+        // 2. 绑定端口
+        serverSocketChannel.bind(new InetSocketAddress(8080));
+        // 3. 配置非阻塞模式
+        serverSocketChannel.configureBlocking(false);
+        // 4. 注册到Selector 并监听连接事件
+        SelectionKey selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+        // 5. 循环监听事件
+        while (selector.select() > 0) {
+            Set<SelectionKey> selectionKeys = selector.selectedKeys();
+            Iterator<SelectionKey> iterator = selectionKeys.iterator();
+            while (iterator.hasNext()) {
+                SelectionKey next = iterator.next();
+                // 如果这个key不想处理，可以使用cancel取消操作
+                // next.cancel();
+                log.debug("{}", next);
+                if (next.isAcceptable()) {
+                    SocketChannel socketChannel = serverSocketChannel.accept();
+                    socketChannel.configureBlocking(false);
+                    socketChannel.register(selector, SelectionKey.OP_READ);
+                    log.debug("接收链接 {}", socketChannel);
+                } else if (next.isReadable()) {
+                    SocketChannel channel = (SocketChannel) next.channel();
+                    buffer.clear();
+                    channel.read(buffer);
+                    buffer.flip();
+                    log.info("收到消息 {}", new String(buffer.array()));
+                    buffer.clear();
+                    channel.close();
+                    /**
+                     * 如果出现远程主机强制关闭连接，可以用这个捕获一下防止导致服务端挂掉
+                     * try {
+                     *     SocketChannel channel = (SocketChannel) next.channel();
+                     *     buffer.clear();
+                     *     int read = channel.read(buffer);
+                     *     if (read == -1) {
+                     *         log.info("客户端断开连接");
+                     *         next.cancel();
+                     *     }
+                     *     buffer.flip();
+                     *     log.info("收到消息 {}", new String(buffer.array()));
+                     *     buffer.clear();
+                     *     channel.close();
+                     * } catch (IOException ioe) {
+                     *     log.error("关闭失败", ioe);
+                     *     next.cancel();
+                     * }
+                     */
+                } else if (next.isWritable()) {
+                    buffer.rewind();
+                    SocketChannel channel = (SocketChannel) next.channel();
+                    channel.write(buffer);
+                    next.interestOps(SelectionKey.OP_READ);
+                    buffer.clear();
+                }
+                iterator.remove();
+            }
+        }
+
+    } catch (IOException e) {
+        throw new RuntimeException(e);
+    }
+}
+```
+
+
+
 # 5. Pipe和FileLock
 
 ## 1. Pipe
@@ -1246,12 +1410,86 @@ public void filesTest() throws IOException {
     Files.move(sourcePath, copy2Path);
 }
 ```
+```java
+/**
+ * 文件遍历测试
+ *
+ * @throws IOException
+ */
+@Test
+public void fileTest() throws IOException {
+    AtomicInteger dirCount = new AtomicInteger();
+    AtomicInteger fileCount = new AtomicInteger();
+    Files.walkFileTree(Paths.get("E:\\project\\cotte\\notes\\文档"), new SimpleFileVisitor<>() {
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+            log.info("当前文件夹为{}", dir);
+            dirCount.incrementAndGet();
+            return super.preVisitDirectory(dir, attrs);
+        }
 
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            log.info("当前文件为{}", file);
+            fileCount.incrementAndGet();
+            return super.visitFile(file, attrs);
+        }
+    });
+    log.info("文件夹数量为{}", dirCount);
+    log.info("文件数量为{}", fileCount);
+}
+
+/**
+ * 使用工具类删除文件夹及子文件
+ *
+ * @throws IOException
+ */
+@Test
+public void deleteDirAncChild() throws IOException {
+    Files.walkFileTree(Paths.get("E:\\project\\cotte\\notes\\文档_bak"), new SimpleFileVisitor<>() {
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            Files.delete(file);
+            return super.visitFile(file, attrs);
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return super.postVisitDirectory(dir, exc);
+        }
+    });
+}
+
+/**
+ * 多级目录拷贝
+ *
+ * @throws IOException
+ */
+@Test
+public void copyFileTest() throws IOException {
+    String source = "D:\\Snipaste-1.16.2-x64";
+    String target = "D:\\Snipaste-1.16.2-x64aaa";
+    Files.walk(Paths.get(source)).forEach(path -> {
+        try {
+            String targetName = path.toString().replace(source, target);// 是目录
+            if (Files.isDirectory(path)) {
+                Files.createDirectory(Paths.get(targetName));
+            } else if (Files.isRegularFile(path)) {
+                // 是普通文件
+                Files.copy(path, Paths.get(targetName));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    });
+}
+```
 ## 3. AsynchronousFileChannel
 
 > 异步写入的通道
 
-### 1.通过Futuer读取数据
+### 1.通过 Futuer 读取数据
 
 ```java
 @Test
@@ -1624,3 +1862,297 @@ private void readHandler(SelectionKey selectionKey, Selector selector) throws IO
 
 ```
 
+# 8. 网络编程
+
+## 1. 处理消息边界
+
+> 1. 客户端发过来的数据中间用特殊的分隔符分割，如 `\n`,匹配到这个分隔符则代表结束，需要处理粘包和半包
+>
+> 2. 发送的消息类似TCP或者HTTP，消息头包含消息的长度和其他属性等。
+>
+>    TLV格式，即Type 类型 Length 长度 Value数据，知道类型和长度的情况下，就可以合理分配buffer的大小，
+>
+> 3. 固定消息长度，服务器按照预定的长度读取，缺点是浪费带宽
+
+```java
+while (iterator.hasNext()) {
+    SelectionKey next = iterator.next();
+    // 如果这个key不想处理，可以使用cancel取消操作
+    // next.cancel();
+    log.debug("{}", next);
+    if (next.isAcceptable()) {
+        SocketChannel socketChannel = serverSocketChannel.accept();
+        socketChannel.configureBlocking(false);
+        // 把ByteBuffer注册到这个Selector中
+        ByteBuffer byteBuffer = ByteBuffer.allocate(16);
+        socketChannel.register(selector, SelectionKey.OP_READ, byteBuffer);
+        log.debug("接收链接 {}", socketChannel);
+    } else if (next.isReadable()) {
+        SocketChannel channel = (SocketChannel) next.channel();
+        ByteBuffer buffer = (ByteBuffer) next.attachment();
+        int read = channel.read(buffer);
+        if (read == -1) {
+            log.info("客户端断开连接");
+            next.cancel();
+        } else {
+            splitBuffer(buffer);
+            // 如果position == limit 说明buffer满了，需要扩容
+            if (buffer.position() == buffer.limit()) {
+                // 扩容
+                ByteBuffer newBuffer = ByteBuffer.allocate(buffer.capacity() * 2);
+                buffer.flip();
+                newBuffer.put(buffer);
+                next.attach(newBuffer);
+            }
+        }
+
+    } else if (next.isWritable()) {
+        SocketChannel channel = (SocketChannel) next.channel();
+        ByteBuffer buffer = (ByteBuffer) next.attachment();
+        buffer.rewind();
+        channel.write(buffer);
+        next.interestOps(SelectionKey.OP_READ);
+        buffer.clear();
+    }
+    iterator.remove();
+}
+```
+
+```java
+private void splitBuffer(ByteBuffer source) {
+    source.flip();
+    for (int i = 0; i < source.limit(); i++) {
+        // 找到一条完整消息
+        if (source.get(i) == '\n') {
+            int length = i + 1 - source.position();
+            // 把这条完整消息存入新的ByteBuffer
+            ByteBuffer target = ByteBuffer.allocate(length < 0 ? 16 : length);
+            //从source 读，向 target 写
+            for (int j = 0; j < length; j++) {
+                target.put(source.get());
+            }
+            ByteBufferUtil.debugAll(target);
+        }
+    }
+    source.compact();
+}
+```
+
+
+
+## 2. 往客户端写入数据
+
+```java
+@Test
+public void serverWriteTest() {
+    try (Selector selector = Selector.open();
+         ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
+        serverSocketChannel.configureBlocking(false);
+        serverSocketChannel.bind(new InetSocketAddress(8080));
+        serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+        while (selector.select() > 0) {
+            Set<SelectionKey> selectionKeys = selector.selectedKeys();
+            Iterator<SelectionKey> iterator = selectionKeys.iterator();
+            while (iterator.hasNext()) {
+                SelectionKey next = iterator.next();
+                iterator.remove();
+                if (next.isAcceptable()) {
+                    SocketChannel socketChannel = serverSocketChannel.accept();
+                    socketChannel.configureBlocking(false);
+                    StringBuilder stringBuilder = new StringBuilder();
+                    for (int i = 0; i < 100000; i++) {
+                        stringBuilder.append("A");
+                    }
+                    ByteBuffer buffer = StandardCharsets.UTF_8.encode(stringBuilder.toString());
+                    /**
+                     * 数据量太大会导致阻塞
+                     *  while (buffer.hasRemaining()) {
+                     *      int write = socketChannel.write(buffer);
+                     *      log.info("本次写入 {}字节", write);
+                     *  }
+                     */
+                    socketChannel.write(buffer);
+                    // 如果还有剩余就在可写状态下执行
+                    if (buffer.hasRemaining()) {
+                        next.interestOps(next.interestOps() | SelectionKey.OP_WRITE);
+                        next.attach(buffer);
+                    }
+                } else if (next.isWritable()) {
+                    ByteBuffer buffer = (ByteBuffer) next.attachment();
+                    SocketChannel channel = (SocketChannel) next.channel();
+                    int write = channel.write(buffer);
+                    log.info("本次写入 {}字节", write);
+                    if (!buffer.hasRemaining()) {
+                        next.interestOps(next.interestOps() & ~SelectionKey.OP_WRITE);
+                        next.attach(null);
+                    }
+                }
+            }
+        }
+    } catch (IOException e) {
+        log.error("创建连接失败", e);
+    }
+}
+```
+
+## 3. 使用多线程优化Selector
+
+## 1. 单线程的
+
+1. 创建服务端
+
+```java
+package net.lesscoding.web.server;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
+
+/**
+ * @author eleven
+ * @date 2024/10/22 16:42
+ * @apiNote
+ */
+@Slf4j
+public class MultiThreadServerTest {
+
+    @Test
+    public void multiThreadServerTest() throws IOException {
+        Thread.currentThread().setName("boss");
+        ServerSocketChannel ssc = ServerSocketChannel.open();
+        ssc.configureBlocking(false);
+        Selector boss = Selector.open();
+        SelectionKey bossKey = ssc.register(boss, 0, null);
+        bossKey.interestOps(SelectionKey.OP_ACCEPT);
+        ssc.bind(new InetSocketAddress(8080));
+        // 创建固定数量的 worker
+        Worker worker = new Worker("worker-0");
+
+        while (boss.select() > 0) {
+            Iterator<SelectionKey> iter = boss.selectedKeys().iterator();
+            while (iter.hasNext()) {
+                SelectionKey key = iter.next();
+                iter.remove();
+                if (key.isAcceptable()) {
+                    SocketChannel sc = ssc.accept();
+                    sc.configureBlocking(false);
+                    log.debug("connected ... {}", sc.getRemoteAddress());
+                    log.debug("before register ... {}", sc.getRemoteAddress());
+                    // 重新注册worker的选择器
+                    worker.register(sc);
+                    log.debug("after register ... {}", sc.getRemoteAddress());
+                }
+            }
+        }
+    }
+
+}
+```
+
+2. 创建Worker
+
+> 不想使用 `queue`可以直接在`selector.wakeUp()`后注册
+
+```java
+package net.lesscoding.web.server;
+
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import net.lesscoding.utils.ByteBufferUtil;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+@Data
+@Slf4j
+public class Worker implements Runnable{
+    private Thread thread;
+
+    private Selector selector;
+
+    private String name;
+
+    private volatile boolean start = false;
+
+    // 在两个线程中传递数据
+    private ConcurrentLinkedQueue<Runnable> queue = new ConcurrentLinkedQueue<>();
+
+    public Worker(String name) {
+        this.name = name;
+    }
+
+    /**
+     * 初始化线程和Selector
+     * @throws IOException
+     */
+    public void register(SocketChannel socketChannel) throws IOException {
+        if (!start) {
+            selector = Selector.open();
+            thread = new Thread(this, name);
+            thread.start();
+            start = true;
+        }
+        // 向队列添加任务， 在run方法中执行
+        queue.add(() -> {
+            try {
+                socketChannel.register(selector, SelectionKey.OP_READ);
+            } catch (ClosedChannelException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        // 唤醒线程
+        selector.wakeup();
+
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                int select = selector.select();
+                log.info(" select {}", select);
+                // 从队列中取出任务执行
+                Runnable poll = queue.poll();
+                if (poll != null) {
+                    poll.run();
+                }
+                Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+                while (iterator.hasNext()) {
+                    SelectionKey key = iterator.next();
+                    iterator.remove();
+                    if (key.isReadable()) {
+                        ByteBuffer buffer = ByteBuffer.allocate(16);
+                        SocketChannel channel = (SocketChannel) key.channel();
+                        log.debug("read... {}", channel.getRemoteAddress());
+                        int read = channel.read(buffer);
+                        if (read == -1) {
+                            key.cancel();
+                        } else {
+                            buffer.flip();
+                            ByteBufferUtil.debugAll(buffer);
+                            buffer.clear();
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+```
+
+[Netty当前进度](https://www.bilibili.com/video/BV1py4y1E7oA?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=45)
