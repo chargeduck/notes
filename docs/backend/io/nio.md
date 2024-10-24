@@ -1997,7 +1997,7 @@ public void serverWriteTest() {
 
 ## 3. 使用多线程优化Selector
 
-## 1. 单线程的
+### 1. 单核版本
 
 1. 创建服务端
 
@@ -2058,7 +2058,9 @@ public class MultiThreadServerTest {
 
 2. 创建Worker
 
-> 不想使用 `queue`可以直接在`selector.wakeUp()`后注册
+> 不想使用 `queue`可以直接在`selector.wakeUp()`后注册。
+>
+> <font color=red>在两个不同的线程通信，可以使用ConcurrentLinkedQueue来传递参数</font>
 
 ```java
 package net.lesscoding.web.server;
@@ -2155,4 +2157,38 @@ public class Worker implements Runnable{
 }
 ```
 
-[Netty当前进度](https://www.bilibili.com/video/BV1py4y1E7oA?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=45)
+### 2. 多核版本
+
+> 对CPU密集操作的话建议使用，否则就预设好一个固定的数量就行了。
+>
+> 创建多个worker，让channel注册到不同的worker中。
+>
+> <font color=red>使用 `Runtime.getRuntime().availableProcessors()`获取CPU的线程数量，但是如果是在docker环境下，拿到的就是容器申请的cpu数量了。</font>
+>
+> 在 `JDK10`以后，可以通过 `jvm`参数`UseContainerSupport`配置，默认开启。
+
+```java
+Worker[] workers = new Worker[Runtime.getRuntime().availableProcessors()];
+for(int i = 0; i < workers.length; i++ ){
+    workers[i] = new Worker("worker-" + i);
+}
+AtomicInteger index=new AtomicInteger();
+while(true){
+    boss.select();
+    Iterator<SelectionKey>iter = boss.selectedKeys().iterator();
+    while(iter.hasNext()){
+       SelectionKey key = iter.next();
+       iter.remove();
+       if(key.isAcceptable()){
+           SocketChannelsc=ssc.accept();
+           sc.configureBlocking(false);
+           log.debug("connected...{}", sc.getRemoteAddress());//2.关联 selector
+           log.debug("before register...{}", sc.getRemoteAddress());// round robin
+           workers[index.getAndIncrement() % workers.length].register(sc);
+           log.debug("after register...{}", sc.getRemoteAddress());
+       }
+   }
+}
+```
+
+
