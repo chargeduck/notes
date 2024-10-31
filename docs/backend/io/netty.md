@@ -1,6 +1,6 @@
 # 1. 概述
 
-> [当前进度 97/157](https://www.bilibili.com/video/BV1py4y1E7oA?p=97)
+> [当前进度 116/157](https://www.bilibili.com/video/BV1py4y1E7oA?p=116)
 >
 > Netty是一个异步的，基于事件驱动的网络应用框架，用于速开发可维护、高性能的网络服务器和客户端。
 
@@ -1007,3 +1007,514 @@ new DelimiterBasedFrameDecoder(1024 * 1024, Unpooled.copiedBuffer("_".getBytes()
 > | int lengthFieldLength   | 长度字段长度                       |
 > | int lengthAdjustment    | 长度字段为基准，还有几个字节是内容 |
 > | int initialBytesToStrip | 从头剥离几个字节                   |
+
+```java
+public class LengthFieldDecoderTest {
+    public static void main(String[] args) {
+        EmbeddedChannel channel = new EmbeddedChannel(
+	            /**
+                 * maxFrameLength 1024: 消息最大长度为1024
+                 * lengthFieldOffset 0: 从头开始读取
+                 * lengthFieldLength 4: 长度属性的长度 int类型为4字节
+                 * lengthAdjustment 0: 长度字节后排除几个非内容字节
+                 * initialBytesToStrip 4: 读取内度排除几个长度字节
+                 */
+                new LengthFieldBasedFrameDecoder(1024, 0, 4, 0, 4),
+                new LoggingHandler(LogLevel.DEBUG)
+        );
+        ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer();
+        sendMsg(buffer, "This is a test records, Has some words and symbols,you can read it in you channel buffers or log, let's try it!");
+        sendMsg(buffer, "HelloWorld!");
+        channel.writeInbound(buffer);
+    }
+
+    private static void sendMsg(ByteBuf buffer, String content) {
+        byte[] bytes = content.getBytes();
+        int length = bytes.length;
+        // 先写入长度在写入内容
+        buffer.writeInt(length)
+                .writeBytes(bytes);
+    }
+
+}
+```
+
+## 3. 协议设计与解析
+
+### 1. Redis客户端demo
+
+> 下边的例子写了一个赋值的命令,使用`$num` 标记后边的这个字符的长度
+>
+> ```shell
+> set name zhangsan
+> ```
+
+```java
+public class RedisWriteTest {
+    public static void main(String[] args) {
+        NioEventLoopGroup worker = new NioEventLoopGroup();
+        // 换行
+        final byte[] LINE = {13, 10};
+        try {
+            Bootstrap bootstrap = new Bootstrap()
+                    .group(worker)
+                    .channel(NioSocketChannel.class)
+                    .handler(new ChannelInitializer<NioSocketChannel>() {
+                        @Override
+                        protected void initChannel(NioSocketChannel channel) throws Exception {
+                            channel.pipeline()
+                                    .addLast(new LoggingHandler())
+                                    .addLast(new ChannelInboundHandlerAdapter() {
+                                        @Override
+                                        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                                            ByteBuf buffer = ctx.alloc().buffer();
+                                            buffer.writeBytes("*3".getBytes())
+                                                    .writeBytes(LINE)
+                                                    .writeBytes("$3".getBytes())
+                                                    .writeBytes(LINE)
+                                                    .writeBytes("set".getBytes())
+                                                    .writeBytes(LINE)
+                                                    .writeBytes("$4".getBytes())
+                                                    .writeBytes(LINE)
+                                                    .writeBytes("name".getBytes())
+                                                    .writeBytes(LINE)
+                                                    .writeBytes("$8".getBytes())
+                                                    .writeBytes(LINE)
+                                                    .writeBytes("zhangsan".getBytes())
+                                                    .writeBytes(LINE)
+                                            ;
+                                            ctx.writeAndFlush(buffer);
+                                            super.channelActive(ctx);
+                                        }
+
+                                        @Override
+                                        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                            ByteBuf byteBuf = (ByteBuf) msg;
+                                            System.out.println("接收数据 " + byteBuf.toString(StandardCharsets.UTF_8));
+                                            super.channelRead(ctx, msg);
+                                        }
+                                    })
+                            ;
+                        }
+                    });
+            ChannelFuture future = bootstrap.connect(Const.HOST, 6379).sync();
+            future.channel().closeFuture().sync();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+```
+
+### 2. Http协议
+
+> 如果使用`ChannelInboundHandlerAdapter`,解析出来的msg将会有两种类型，一种是`HttpContent`一种是`HttpRequest`.
+>
+> 可以使用`SimpleChannelInboundHandler`后边添加泛型来处理特定类型的消息。
+>
+> **<font color=red>HttpServerCodec</font>**是Http写的编解码器，带`Codec`的都是既可以编码又可以解码
+
+```java
+@Slf4j
+public class HttpTest {
+    public static void main(String[] args) {
+        NioEventLoopGroup bossGroup = new NioEventLoopGroup();
+        NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+        try {
+            ServerBootstrap serverBootstrap = new ServerBootstrap()
+                    .group(bossGroup, workerGroup)
+                    .channel(NioServerSocketChannel.class)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel channel) throws Exception {
+                            channel.pipeline()
+                                    .addLast(new LoggingHandler(LogLevel.DEBUG))
+                                    .addLast(new HttpServerCodec())
+                                    .addLast(new SimpleChannelInboundHandler<HttpRequest>() {
+                                        @Override
+                                        protected void channelRead0(ChannelHandlerContext channelHandlerContext, HttpRequest httpRequest) throws Exception {
+                                            // 获取请求
+                                            log.debug("响应URL： {}", httpRequest.uri());
+                                            // 返回响应数据
+                                            DefaultFullHttpResponse response = new DefaultFullHttpResponse(
+                                                    httpRequest.protocolVersion(),
+                                                    HttpResponseStatus.OK);
+                                            // 添加响应的长度，防止 浏览器 一直转圈等待响应结束
+                                            byte[] bytes = StrUtil.format("<h1>{}Hello,World!</h1>", RandomUtil.randomInt()).getBytes();
+                                            response.headers().set("Content-Type", "text/html;charset=utf-8");
+                                            response.headers().set("Content-Length", bytes.length);
+                                            response.content().writeBytes(bytes);
+                                            channelHandlerContext.writeAndFlush(response);
+                                        }
+                                    })
+                                    /**
+                                     *  这里可以用使用 HttpObjectAggregator 来聚合请求体 ，
+                                     *  addLast(new HttpObjectAggregator(65536))
+                                     *  但是这里需要注意， HttpObjectAggregator 会将请求体聚合为一个 ByteBuf ，
+                                     *  所以需要注意， HttpObjectAggregator 的聚合大小，
+                                     *   如果请求体过大，会导致内存溢出，
+                                     *  或者不使用ChannelInboundHandlerAdapter 而是使用 上边的SimpleChannelInboundHandler 来处理请求体，
+                                     *  .addLast(new SimpleChannelInboundHandler<HttpRequest>(){})
+                                     *  这样可以让这个处理器只关注后边泛型的消息，过滤掉其他消息
+                                     */
+                                   /* .addLast(new ChannelInboundHandlerAdapter() {
+
+                                        @Override
+                                        public void channelRead(io.netty.channel.ChannelHandlerContext ctx, Object msg) throws Exception {
+                                            log.debug("msg Class : {}", msg.getClass());
+                                            // 请求行
+                                            if (msg instanceof HttpRequest) {
+
+                                            }
+                                            // 请求体
+                                            if (msg instanceof HttpContent) {
+
+                                            }
+                                            super.channelRead(ctx, msg);
+                                        }
+                                    })*/
+                            ;
+                        }
+                    });
+            ChannelFuture future = serverBootstrap.bind(Const.PORT)
+                    .sync();
+            future.channel().closeFuture().sync();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+```
+
+### 3. 自定义协议
+
+> 自定义协议的要素一般包括以下几点。
+>
+> 1. 魔数，用来第一时间判断是否是无效数据包
+> 2. 版本号,可以支持协议升级 例如 `Http` -> `WebSocket`
+> 3. 序列化算法，消息正文采用哪种序列化和反序列化方式，例如`json`,`protobuf`,`hesslan`,`jdk`
+> 4. 指令类型，如：登录，注册，等业务属性
+> 5. 请求需要，为了双工通信提供异步能力
+> 6. 正文长度
+> 7. 消息正文
+
+1. 定义消息类
+
+```java
+@Data
+public abstract class Message implements Serializable {
+    public static Class<?> getMessageClass(int messageType) {
+        return messageClasses.get(messageType);
+    }
+
+    private int sequenceId;
+
+    private int messageType;
+
+    public abstract int getMessageType();
+
+    public static final int LOGIN_REQUEST = 1;
+    public static final int LOGIN_RESPONSE = 2;
+    public static final int CHAT_REQUEST = 3;
+    public static final int CHAT_RESPONSE = 4;
+    public static final int GROUP_CREATE_REQUEST = 5;
+    public static final int GROUP_CREATE_RESPONSE = 6;
+    public static final int GROUP_JOIN_REQUEST = 7;
+    public static final int GROUP_JOIN_RESPONSE = 8;
+    public static final int GROUP_QUIT_REQUEST = 9;
+    public static final int GROUP_QUIT_RESPONSE = 10;
+    public static final int GROUP_CHAT_REQUEST = 11;
+    public static final int GROUP_CHAT_RESPONSE = 12;
+    public static final int GROUP_MEMBERS_REQUEST = 13;
+    public static final int GROUP_MEMBERS_RESPONSE = 14;
+    private static final List<Class> messageClasses = new ArrayList<>();
+}
+```
+
+```java
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(callSuper = true)
+public class LoginRequestMessage extends Message{
+
+    private String username;
+
+    private String password;
+
+    private String nickname;
+
+
+    @Override
+    public int getMessageType() {
+        return LOGIN_REQUEST;
+    }
+}
+```
+
+2. 实现消息编解码器
+
+> 这里用了`JDK`的序列化和反序列化方式，`Message`是一个抽象类，没办法创建对象所用用`Gson`反序列化的时候会报错。
+
+```java
+@Slf4j
+public class MessageCodec extends ByteToMessageCodec<Message> {
+
+    private Gson gson = new Gson();
+
+    /**
+     * 0. JDK 的序列化方式
+     * ByteArrayOutputStream baos = new ByteArrayOutputStream();
+     * ObjectOutputStream oos = new ObjectOutputStream(baos);
+     * oos.writeObject(msg);
+     * byte[] byteArray = baos.toByteArray();
+     *
+     * @param ctx channel上下文
+     * @param msg 消息
+     * @param out 缓冲区
+     */
+    @Override
+    protected void encode(ChannelHandlerContext ctx, Message msg, ByteBuf out) throws Exception {
+        // 1. 8 字节的魔数
+        out.writeBytes("AreYouOk".getBytes());
+        // 2. 1 字节的版本
+        out.writeByte(1);
+        // 3. 1 字节的序列化方式 0jdk 1json 2protobuf 3kryo
+        out.writeByte(0);
+        // 4. 1 字节的指令类型
+        out.writeByte(msg.getMessageType());
+        // 5. 4 个字节的请求序号
+        out.writeInt(msg.getSequenceId());
+        // 5.1 无意义字节，让内容前的字节数对接2的整数倍
+        out.writeByte(0xff);
+        // 6. 正文的长度
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(msg);
+        byte[] bytes = baos.toByteArray();
+        //String msgJson = gson.toJson(msg);
+        //byte[] bytes = msgJson.getBytes();
+        out.writeInt(bytes.length);
+        // 7. 正文
+        out.writeBytes(bytes);
+
+    }
+
+    /**
+     * @param ctx
+     * @param in
+     * @param out
+     * @throws Exception
+     */
+
+    @Override
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        // 1. 从头读取八个字节魔数
+        byte[] magicByte = new byte[8];
+        String magicStr = in.readBytes(magicByte).toString(StandardCharsets.UTF_8);
+        // 2. 读取版本
+        byte version = in.readByte();
+        // 3. 读取序列化方式
+        byte serializerType = in.readByte();
+        // 4. 读取指令类型
+        byte messageType = in.readByte();
+        // 5. 读取请求序号
+        int sequenceId = in.readInt();
+        // 6. 读取无意义字节
+        in.readByte();
+        // 7. 读取正文长度
+        int length = in.readInt();
+        // 8. 读取正文
+        byte[] bytes = new byte[length];
+        in.readBytes(bytes);
+        // 9. 反序列化
+        Message message = null;
+        if (serializerType == 0) {
+            // JDK 反序列化
+            ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
+            message = (Message) ois.readObject();
+        }
+        if (serializerType == 1) {
+            message = gson.fromJson(new String(bytes), Message.class);
+        }
+        // 10. 加入到 out 中
+        out.add(message);
+        // 打印数据
+        log.debug("{},{},{},{},{},{}",
+                magicStr, version, serializerType, messageType, sequenceId, length);
+        log.debug("{}", message);
+    }
+}
+```
+
+3. 测试
+
+> 注意这个`MessageCodec.encode()`方法是`protected`的，当前类需要和`MessageCodec`在同一个包下。
+>
+> 然后为了解决半包和粘包的问题，使用了`LengthFieldBasedFrameDecoder`定长处理器来处理。
+>
+> <font color=red>**其中内容长度前边有16个字节，长度字节为4，长度后紧跟着内容所有第三个参数为0，因为自定义了解码器所以不需要除去前边的内容，最后一个参数为0**</font>
+
+```java
+public class MessageCodecTest {
+    /**
+     * 如果是无状态的handler就可以提取出公共变量，供给多个eventLoopGroup使用。
+     * 但是 LengthFieldBasedFrameDecoder 这种需要区分每个channel的有状态的就不能抽离出来，否则就是线程不安全的。
+     * 如果handler实现类上有 @Sharable {@link  io.netty.channel.ChannelHandler.Sharable} 注解就是可以共享使用的
+     *
+     */
+    public static void main(String[] args) throws Exception {
+
+        LoggingHandler loggingHandler = new LoggingHandler(LogLevel.DEBUG);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                loggingHandler,
+                new LengthFieldBasedFrameDecoder(1024, 16, 4, 0, 0),
+                new MessageCodec()
+        );
+        // encode
+        LoginRequestMessage loginRequestMessage = new LoginRequestMessage("username", "password", "nickname");
+        channel.writeOutbound(loginRequestMessage);
+        // decode
+        ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer();
+        new MessageCodec().encode(null, loginRequestMessage, buffer);
+        ByteBuf slice1 = buffer.slice(0, 60);
+        ByteBuf slice2 = buffer.slice(60, buffer.readableBytes() - 60);
+        // channel.writeInbound之后会调用release,这就会导致slice1写完之后slice2直接报错了。需要retain
+        buffer.retain();
+        channel.writeInbound(slice1);
+        channel.writeInbound(slice2);
+    }
+}
+```
+
+> 上述代码中的`MessageCodec`接收的数据都是由定长处理器处理好的，也就不存在粘包和半包的问题，可不可以单独提出来标注`@Sharable`呢？
+>
+> 答案是**<font color=red>不可以！</font>**
+
+因为父类`ByteToMessageCodec`上有这么一段注释，这个类及其子类必须都是不可共享的。
+
+```java
+/**
+ * A Codec for on-the-fly encoding/decoding of bytes to messages and vise-versa.
+ *
+ * This can be thought of as a combination of {@link ByteToMessageDecoder} and {@link MessageToByteEncoder}.
+ *
+ * Be aware that sub-classes of {@link ByteToMessageCodec} <strong>MUST NOT</strong>
+ * annotated with {@link @Sharable}.
+ */
+```
+
+具体代码如下
+
+```java
+protected ByteToMessageCodec(boolean preferDirect) {
+    // 确保不被共享
+    ensureNotSharable();
+    outboundMsgMatcher = TypeParameterMatcher.find(this, ByteToMessageCodec.class, "I");
+    encoder = new Encoder(preferDirect);
+}
+protected void ensureNotSharable() {
+    if (this.isSharable()) {
+        throw new IllegalStateException("ChannelHandler " + this.getClass().getName() + " is not allowed to be shared");
+    }
+}
+
+public boolean isSharable() {
+    Class<?> clazz = this.getClass();
+    Map<Class<?>, Boolean> cache = InternalThreadLocalMap.get().handlerSharableCache();
+    Boolean sharable = (Boolean)cache.get(clazz);
+    if (sharable == null) {
+        sharable = clazz.isAnnotationPresent(ChannelHandler.Sharable.class);
+        cache.put(clazz, sharable);
+    }
+
+    return sharable;
+}
+```
+
+### 4. 共享的编解码器
+
+> 上边的代码中实现了`ByteToMessageCodec`的解码器不支持共享，但是可以通过实现另外一个处理器`MessageToMessageCodec`来实现共享。
+
+```java
+/**
+ * @author eleven
+ * @date 2024/10/31 10:56
+ * @apiNote 
+ *  <strong>必须和 LengthFieldBaseFrameDecoder一起使用</strong>，确保接收到的ByteBuf消息是完整的
+ *  <br>没有验证过，视频说的，等会我试试
+ * 
+ */
+@Slf4j
+@ChannelHandler.Sharable
+public class SharedMessageCodec extends MessageToMessageCodec<ByteBuf, Message> {
+    private Gson gson = new Gson();
+    @Override
+    protected void encode(ChannelHandlerContext ctx, Message msg, List<Object> outList) throws Exception {
+        ByteBuf out = ctx.alloc().buffer();
+        // 1. 8 字节的魔数
+        out.writeBytes("AreYouOk".getBytes());
+        // 2. 1 字节的版本
+        out.writeByte(1);
+        // 3. 1 字节的序列化方式 0jdk 1json 2protobuf 3kryo
+        out.writeByte(0);
+        // 4. 1 字节的指令类型
+        out.writeByte(msg.getMessageType());
+        // 5. 4 个字节的请求序号
+        out.writeInt(msg.getSequenceId());
+        // 5.1 无意义字节，让内容前的字节数对接2的整数倍
+        out.writeByte(0xff);
+        // 6. 正文的长度 JDK序列化
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(msg);
+        byte[] bytes = baos.toByteArray();
+        //String msgJson = gson.toJson(msg);
+        //byte[] bytes = msgJson.getBytes();
+        out.writeInt(bytes.length);
+        // 7. 正文
+        out.writeBytes(bytes);
+        outList.add(out);
+    }
+
+    @Override
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        // 1. 从头读取八个字节魔数
+        byte[] magicByte = new byte[8];
+        String magicStr = in.readBytes(magicByte).toString(StandardCharsets.UTF_8);
+        // 2. 读取版本
+        byte version = in.readByte();
+        // 3. 读取序列化方式
+        byte serializerType = in.readByte();
+        // 4. 读取指令类型
+        byte messageType = in.readByte();
+        // 5. 读取请求序号
+        int sequenceId = in.readInt();
+        // 6. 读取无意义字节
+        in.readByte();
+        // 7. 读取正文长度
+        int length = in.readInt();
+        // 8. 读取正文
+        byte[] bytes = new byte[length];
+        in.readBytes(bytes);
+        // 9. 反序列化
+        Message message = null;
+        if (serializerType == 0) {
+            // JDK 反序列化
+            ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
+            message = (Message) ois.readObject();
+        }
+        if (serializerType == 1) {
+            message = gson.fromJson(new String(bytes), Message.class);
+        }
+        // 10. 加入到 out 中
+        out.add(message);
+        // 打印数据
+        log.debug("{},{},{},{},{},{}",
+                magicStr, version, serializerType, messageType, sequenceId, length);
+        log.debug("{}", message);
+    }
+}
+```
+
