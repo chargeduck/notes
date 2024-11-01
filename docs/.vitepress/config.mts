@@ -77,6 +77,10 @@ export default withMermaid({
                     {
                         text: '跨域配置',
                         link: '/frontend/utils/corsConfig'
+                    },
+                    {
+                        text: 'MockJs',
+                        link: '/frontend/utils/mockjs'
                     }
                 ]
             }
