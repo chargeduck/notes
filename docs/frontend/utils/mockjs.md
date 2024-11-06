@@ -226,29 +226,51 @@ export default {
 ## 1. 创建分页工具类
 
 ```javascript
-/**
- * 前端分页
- * @param srcList        源数据
- * @param current        当前页
- * @param pageSize       每页条数
- * @returns pageList    当前页数据
- * @returns total        总条数
- * @returns pageNum      总页数
- *
- */
+
 export default {
+  /**
+   * 前端分页
+   * @param srcList        源数据
+   * @param current        当前页
+   * @param pageSize       每页条数
+   * @returns pageList    当前页数据
+   * @returns total        总条数
+   * @returns pageNum      总页数
+   */
   sliceList(srcList, current, pageSize) {
     const formIndex = (current - 1) * pageSize;
     const toIndex = current * pageSize;
-    const records = srcList.slice(formIndex, Math.min(toIndex, srcList.length));
-    const pageNum = Math.ceil(srcList.length / pageSize);
+    const rows = srcList.slice(formIndex, Math.min(toIndex, srcList.length));
     const total = srcList.length;
-    return {records, total, pageNum}
+    return {rows, total}
   },
-  filterList(srcList, filterMap) {
+  /**
+   * 过滤列表
+   * @param srcList       源数据
+   * @param filterMap      过滤条件
+   *  <pre>
+   *    如果是post请求的直接传入对象，然后内部会转换成map
+   *    如果是get请求，就使用MockParamsUtil.getUrlParamsExcludePageField()获取
+   *  </pre>
+   * @param ignoreField
+   * @returns {Array}   过滤后的数据
+   */
+  filterList(srcList, filterMap, ...ignoreField) {
+    if (ignoreField.length > 0) {
+      ignoreField.forEach(item => {
+        filterMap.delete(item)
+      })
+    }
+    if (filterMap.size === 0) {
+      return srcList
+    }
     filterMap.forEach((value, key) => {
+
       srcList = srcList.filter(item => {
-        return item[key].indexOf(value) !== -1
+        if (typeof item[key] =='string') {
+          return item[key].indexOf(value) !== -1
+        }
+        return item[key] == value
       })
     })
     return srcList
@@ -260,6 +282,12 @@ export default {
 
 ```javascript
 export default {
+  /**
+   * 获取get请求的参数
+   * @param url
+   * @param name
+   * @returns {string}
+   */
   getUrlParam(url, name) {
     let result = ''
     url.split('?')[1].split('&').forEach(item => {
@@ -269,7 +297,11 @@ export default {
     })
     return result
   },
-
+  /**
+   * 获取get请求的参数Map
+   * @param url                 url
+   * @returns {Map<any, any>}   参数Map
+   */
   getUrlParams(url) {
     let result = new Map()
     const split = url.split('?');
@@ -280,297 +312,517 @@ export default {
       result.set(item.split('=')[0], item.split('=')[1])
     })
     return result
+  },
+  /**
+   * 获取get请求的参数Map，忽略某些字段
+   * @param url                 url
+   * @param ignoreField         忽略的字段
+   * @returns {Map<any, any>}   参数Map
+   */
+  getUrlParamsAndIgnoreField(url, ...ignoreField) {
+    let allParams = this.getUrlParams(url);
+    let filteredParams = new Map();
+    allParams.forEach((value, key) => {
+      if (!ignoreField.includes(key)) {
+        filteredParams.set(key, value);
+      }
+    });
+    return filteredParams;
+  },
+  /**
+   * 获取get请求的参数Map，忽略分页字段
+   * @param url                 url
+   * @returns {Map<any, any>}   参数Map
+   */
+  getUrlParamsExcludePageField(url) {
+    return this.getUrlParamsAndIgnoreField(url, 'page')
+  },
+  /**
+   * 获取路径参数
+   * eg: /systemParam/detail/123456    =>  123456
+   * @param url
+   * @return {*}    参数
+   *
+   */
+  getPathUrlParams(url) {
+    return url.split("/").pop()
   }
 }
+
 ```
 
 ## 3. 创建MockJs
 
-```vue
+```js
 import Mock from "mockjs";
-import PageUtil from "@/utils/PageUtil";
-import ParamsUtil from "@/utils/ParamsUtil";
+import MockParamsUtil from "@/utils/MockParamsUtil";
+import MockPageUtil from "@/utils/MockPageUtil";
 
-let {newsList} = Mock.mock({
-  "newsList|1-20": [
+
+let {gatewayInfoList} = Mock.mock({
+  "gatewayInfoList|1-50": [
     {
-      id: "@increment",
-      title: '@ctitle',
-      content: '@cparagraph(5,10)',
-      createTime: '@date(yyyy-MM-dd hh:mm:ss)',
-      // image: 'https://lf-flow-web-cdn.doubao.com/obj/flow-doubao/doubao/web/static/image/logo-icon-white-bg.dc28fd5e.png'
-      image: Mock.Random.image('50x50', '#4A7BF7', '#FFF', 'png', '@word(5,10)')
+      id: "@increment(1)",
+      gatewayCode: "@word(5)",
+      gatewaySerial: "@guid()",
+      gatewayBrand: "@word(5)",
+      gatewayMode: "@word(5)",
+      equipModelId: "@word(5)",
+      createBy: "@cname(3)",
+      createTime: "@datetime(yyyy-MM-dd hh:mm:ss)",
+      updateBy: "@cname(3)",
+      updateTime: "@datetime(yyyy-MM-dd hh:mm:ss)"
+
     }
   ]
 })
-Mock.mock(new RegExp('/mock/news/page*'), 'get', (options) => {
-  const urlParamsMap = ParamsUtil.getUrlParams(options.url);
-  console.log(urlParamsMap, 'urlParams')
-  const current = urlParamsMap.get('current') || 1;
-  const pageSize = urlParamsMap.get('pageSize') || 10;
-  urlParamsMap.delete('current')
-  urlParamsMap.delete('pageSize')
-  if (urlParamsMap.size > 0) {
-    newsList = PageUtil.filterList(newsList, urlParamsMap)
-  }
-  const data = PageUtil.sliceList(newsList, current, pageSize)
+Mock.mock(new RegExp("/gatewayInfo/all*"), 'get', () => {
   return {
     code: 200,
-    message: 'success',
-    data
+    msg:'success',
+    data: gatewayInfoList
   }
 })
-
-Mock.mock(new RegExp('/mock/news/page*'), 'post', (options) => {
-  const body = JSON.parse(options.body)
-  const searchMap = new Map(Object.entries(body.searchForm));
-  if (searchMap.size > 0) {
-    newsList = PageUtil.filterList(newsList, searchMap)
-  }
-  const data = PageUtil.sliceList(newsList, body.page.current, body.page.pageSize)
+/**
+ * 分页查询数据
+ * @param params    参数
+ */
+Mock.mock(new RegExp("/gatewayInfo/list*"), 'get', (options) => {
+  let paramsMap = MockParamsUtil.getUrlParams(options.url)
+  const pageNum = paramsMap.get('pageNum')
+  const pageSize = paramsMap.get('pageSize')
+  let resultArr = [...gatewayInfoList]
+  // 过滤查询条件
+  resultArr = MockPageUtil.filterList(resultArr, paramsMap, 'pageNum', 'pageSize');
+  // 分页
+  const data = MockPageUtil.sliceList(resultArr, pageNum, pageSize);
   return {
     code: 200,
-    message: 'success',
-    data
+    msg: 'success',
+    ...data
   }
 })
-
-Mock.mock(new RegExp('/mock/news/add*'), 'post', (options) => {
+// 新增
+Mock.mock(new RegExp('/gatewayInfo/addGateway*'), 'post', (options) => {
+  debugger
   const body = JSON.parse(options.body)
-  newsList = [
+  gatewayInfoList = [
     Mock.mock({
-      id: '@increment',
-      title: body.title,
-      content: body.content,
-      createTime: '@now()',
-      image: Mock.Random.image('50x50', '#4A7BF7', '#FFF', 'png', '@word(5,10)')
+      ...body,
+      id: "@increment(1)",
+      createBy: "@cname(3)",
+      createTime: "@now()",
+      updateBy: "@cname(3)",
+      updateTime: "@now()"
     }),
-    ...newsList
+    ...gatewayInfoList
   ]
   return {
     code: 200,
-    message:'success',
+    msg: 'success',
     data: '添加成功'
   }
 })
-
-Mock.mock(new RegExp('/mock/news/del/*'), 'delete', (options) => {
-  const id = options.url.split('/').pop()
-  newsList = newsList.filter(item => item.id != id)
+// 删除
+Mock.mock(new RegExp('/gatewayInfo/*'), 'delete', (options) => {
+  debugger
+  const id = MockParamsUtil.getPathUrlParams(options.url)
+  gatewayInfoList = gatewayInfoList.filter(item => item.id != id)
   return {
     code: 200,
-    message:'success',
+    msg: 'success',
     data: '删除成功'
   }
 })
-
-Mock.mock(new RegExp('/mock/news/detail/*'), 'get', (options) => {
-  const id = options.url.split('/').pop()
-  const data = newsList.find(item => item.id == id)
+// 获取详情
+Mock.mock(new RegExp('/gatewayInfo/*'), 'get', (options) => {
+  debugger
+  const id = MockParamsUtil.getPathUrlParams(options.url)
+  const data = gatewayInfoList.find(item => item.id == id)
   return {
     code: 200,
-    message:'success',
+    msg: 'success',
     data
   }
 })
-
-Mock.mock(new RegExp('/mock/news/edit*'), 'put', (options) => {
+// 编辑
+Mock.mock(new RegExp('/gatewayInfo/editGateway*'), 'put', (options) => {
   const body = JSON.parse(options.body)
-  newsList = newsList.map(item => {
-    if (item.id == body.id) {
-      return {
-       ...item,
-        title: body.title,
-        content: body.content
+  if (body.id) {
+    gatewayInfoList = gatewayInfoList.map(item => {
+      if (item.id == body.id) {
+        return body
       }
+      return item
+    })
+    return {
+      code: 200,
+      msg: 'success',
+      data: '编辑成功'
     }
-    return item
-  })
+  } else {
+    gatewayInfoList = [
+      Mock.mock({
+        id: "@increment(1)",
+        createBy: "@cname(3)",
+        createTime: "@now()",
+        updateBy: "@cname(3)",
+        updateTime: "@now()",
+        ...body
+      }),
+      ...gatewayInfoList
+    ]
+    return {
+      code: 200,
+      msg: 'success',
+      data: '添加成功'
+    }
+  }
+
 })
+
 ```
 
 ## 4. 创建页面
 
 ```vue
 <template>
-  <div>
-    <el-form :model="searchForm" inline style="float: left">
-      <el-form-item label="标题" prop="title">
-        <el-input v-model="searchForm.title"></el-input>
+  <div class="app-container">
+    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
+      <el-form-item label="编号" prop="gatewayCode">
+        <el-input
+          v-model="queryParams.gatewayCode"
+          placeholder="请输入编号"
+          clearable
+          @keyup.enter.native="handleQuery"
+        />
       </el-form-item>
-      <el-form-item label="内容" prop="content">
-        <el-input v-model="searchForm.content"></el-input>
+      <el-form-item label="序列号" prop="gatewaySerial">
+        <el-input
+          v-model="queryParams.gatewaySerial"
+          placeholder="请输入序列号"
+          clearable
+          @keyup.enter.native="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="品牌" prop="gatewayBrand">
+        <el-input
+          v-model="queryParams.gatewayBrand"
+          placeholder="请输入品牌"
+          clearable
+          @keyup.enter.native="handleQuery"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="search">查询</el-button>
-        <el-button type="primary" @click="add">新增</el-button>
+        <el-button type="primary" icon="el-icon-search" size="mini" @click="handleQuery">搜索</el-button>
+        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
       </el-form-item>
     </el-form>
-    <el-table :data="tableData" border stripe>
-      <el-table-column type="index" label="序号" width="50"/>
-      <el-table-column prop="image" label="图片">
+
+    <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button
+          type="primary"
+          plain
+          icon="el-icon-plus"
+          size="mini"
+          @click="handleAdd"
+          v-hasPermi="['common:gatewayInfo:add']"
+        >新增</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="success"
+          plain
+          icon="el-icon-edit"
+          size="mini"
+          :disabled="single"
+          @click="handleUpdate"
+          v-hasPermi="['common:gatewayInfo:edit']"
+        >修改</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="danger"
+          plain
+          icon="el-icon-delete"
+          size="mini"
+          :disabled="multiple"
+          @click="handleDelete"
+          v-hasPermi="['common:gatewayInfo:remove']"
+        >删除</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="warning"
+          plain
+          icon="el-icon-download"
+          size="mini"
+          @click="handleExport"
+          v-hasPermi="['common:gatewayInfo:export']"
+        >导出</el-button>
+      </el-col>
+      <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
+    </el-row>
+
+    <el-table v-loading="loading" :data="gatewayInfoList" @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="55" align="center" />
+      <el-table-column type="index" width="55" label="序号" />
+      <el-table-column label="编号" align="center" prop="gatewayCode" show-overflow-tooltip/>
+      <el-table-column label="序列号" align="center" prop="gatewaySerial" show-overflow-tooltip/>
+      <el-table-column label="品牌" align="center" prop="gatewayBrand" show-overflow-tooltip/>
+      <el-table-column label="型号" align="center" prop="gatewayMode" show-overflow-tooltip/>
+      <el-table-column label="设备模型" align="center" prop="equipModelId" show-overflow-tooltip/>
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
-          <img :src="scope.row.image" alt="" width="50" height="50">
-        </template>
-      </el-table-column>
-      <el-table-column prop="title" label="标题"/>
-      <el-table-column prop="content" label="内容" width="1200"/>
-      <el-table-column prop="createTime" label="日期"/>
-      <el-table-column label="操作">
-        <template slot-scope="scope">
-          <el-button type="primary" size="small" @click="detail(scope.row.id)">编辑</el-button>
-          <el-button type="danger" size="small" @click="del(scope.row.id)">删除</el-button>
+          <el-dropdown>
+            <span class="el-dropdown-link">
+              操作<i class="el-icon-arrow-down el-icon--right" />
+            </span>
+            <el-dropdown-menu slot="dropdown">
+              <el-dropdown-item>
+                <el-button
+                  size="mini"
+                  type="text"
+                  icon="el-icon-view"
+                  @click="handleDetail(scope.row)"
+                  v-hasPermi="['common:gatewayInfo:edit']"
+                >详情</el-button>
+              </el-dropdown-item>
+              <el-dropdown-item>
+                <el-button
+                  size="mini"
+                  type="text"
+                  icon="el-icon-edit"
+                  @click="handleUpdate(scope.row)"
+                  v-hasPermi="['common:gatewayInfo:edit']"
+                >修改</el-button>
+              </el-dropdown-item>
+              <el-dropdown-item>
+                <el-button
+                  size="mini"
+                  type="text"
+                  icon="el-icon-delete"
+                  @click="handleDelete(scope.row)"
+                  v-hasPermi="['common:gatewayInfo:remove']"
+                >删除</el-button>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        :current-page.sync="page.current"
-        :page-sizes="[10, 20, 30, 40, 5]"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="page.total">
-    </el-pagination>
-    <el-dialog :visible.sync="dialogVisible" title="编辑">
-      <el-form :model="form" label-width="120px">
-        <el-row>
+
+    <pagination
+      v-show="total>0"
+      :total="total"
+      :page.sync="queryParams.pageNum"
+      :limit.sync="queryParams.pageSize"
+      @pagination="getList"
+    />
+
+    <!-- 添加或修改网关信息对话框 -->
+    <el-dialog :title="title" :visible.sync="open" width="800px" append-to-body>
+      <el-form ref="form" :model="form" :rules="rules" label-width="80px" label-position="left">
+        <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="标题" prop="title">
-              <el-input v-model="form.title"/>
+            <el-form-item label="编号" prop="gatewayCode">
+              <el-input v-model="form.gatewayCode" placeholder="请输入编号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="内容" prop="content">
-              <el-input v-model="form.content"/>
+            <el-form-item label="序列号" prop="gatewaySerial">
+              <el-input v-model="form.gatewaySerial" placeholder="请输入序列号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="图片" prop="image">
-              <el-input v-model="form.image" disabled/>
+            <el-form-item label="品牌" prop="gatewayBrand">
+              <el-input v-model="form.gatewayBrand" placeholder="请输入品牌" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="日期" prop="createTime">
-              <el-input v-model="form.createTime" disabled/>
+            <el-form-item label="型号" prop="gatewayMode">
+              <el-input v-model="form.gatewayMode" placeholder="请输入型号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item>
-              <el-button type="primary" @click="dialogVisible = false">取消</el-button>
-              <el-button type="primary" @click="edit">确定</el-button>
+            <el-form-item label="设备模型" prop="equipModelId">
+              <el-input v-model="form.equipModelId" placeholder="请输入设备模型" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitForm" v-show="showSaveBtn">确 定</el-button>
+        <el-button @click="cancel">取 消</el-button>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import axios from 'axios'
+import { listGatewayInfo, getGatewayInfo, delGatewayInfo, addGatewayInfo, updateGatewayInfo } from "@/api/common/gatewayInfo";
 
 export default {
-  name: 'HelloWorld',
+  name: "GatewayInfo",
   data() {
     return {
-      searchForm: {
-        title: '',
-        content: ''
-      },
-      tableData: [],
-      page: {
-        current: 1,
+      // 遮罩层
+      loading: true,
+      // 选中数组
+      ids: [],
+      // 非单个禁用
+      single: true,
+      // 非多个禁用
+      multiple: true,
+      // 显示搜索条件
+      showSearch: true,
+      // 总条数
+      total: 0,
+      // 网关信息表格数据
+      gatewayInfoList: [],
+      // 弹出层标题
+      title: "",
+      // 是否显示弹出层
+      open: false,
+      // 是否显示保存按钮
+      showSaveBtn: true,
+      // 查询参数
+      queryParams: {
+        pageNum: 1,
         pageSize: 10,
-        total: 0
+        gatewayCode: null,
+        gatewaySerial: null,
+        gatewayBrand: null,
+        gatewayMode: null,
+        equipModelId: null,
       },
-      dialogVisible: false,
-      form: {
-        title: '',
-        content: '',
-        id: '',
-        image: '',
-        createTime: ''
+      // 表单参数
+      form: {},
+      // 表单校验
+      rules: {
       }
-    }
+    };
   },
   created() {
-    this.fetchDataPost()
+    this.getList();
   },
   methods: {
-    fetchDataPost() {
-      axios.post('/mock/news/page', {
-        page: this.page,
-        searchForm: this.searchForm
-      }).then(resp => {
-        this.tableData = resp.data.data.records
-        this.page.total = resp.data.data.total
-      })
+    /** 查询网关信息列表 */
+    getList() {
+      this.loading = true;
+      listGatewayInfo(this.queryParams).then(response => {
+        this.gatewayInfoList = response.rows;
+        this.total = response.total;
+        this.loading = false;
+      });
     },
-    fetchData() {
-      axios.get('/mock/news/page', {
-        params: {
-          current: this.page.current,
-          pageSize: this.page.pageSize,
-          title: this.searchForm.title,
-          content: this.searchForm.content
+    // 取消按钮
+    cancel() {
+      this.open = false;
+      this.reset();
+    },
+    // 表单重置
+    reset() {
+      this.form = {
+        id: null,
+        gatewayCode: null,
+        gatewaySerial: null,
+        gatewayBrand: null,
+        gatewayMode: null,
+        equipModelId: null,
+        createBy: null,
+        createTime: null,
+        updateBy: null,
+        updateTime: null,
+        delFlag: null
+      };
+      this.resetForm("form");
+    },
+    /** 搜索按钮操作 */
+    handleQuery() {
+      this.queryParams.pageNum = 1;
+      this.getList();
+    },
+    /** 重置按钮操作 */
+    resetQuery() {
+      this.resetForm("queryForm");
+      this.handleQuery();
+    },
+    // 多选框选中数据
+    handleSelectionChange(selection) {
+      this.ids = selection.map(item => item.id)
+      this.single = selection.length!==1
+      this.multiple = !selection.length
+    },
+    /** 新增按钮操作 */
+    handleAdd() {
+      this.reset();
+      this.open = true;
+      this.title = "添加网关信息";
+      this.showSaveBtn = true
+    },
+    /** 详情按钮操作 */
+    handleDetail(row) {
+      this.reset()
+      const id = row.id || this.ids
+      getGatewayInfo(id).then(response => {
+        this.form = response.data;
+        this.open = true;
+        this.title = "网关信息详情";
+        this.showSaveBtn = false
+      });
+    },
+    /** 修改按钮操作 */
+    handleUpdate(row) {
+      this.reset();
+      const id = row.id || this.ids
+      getGatewayInfo(id).then(response => {
+        this.form = response.data;
+        this.open = true;
+        this.title = "修改网关信息";
+        this.showSaveBtn = true
+      });
+    },
+    /** 提交按钮 */
+    submitForm() {
+      this.$refs["form"].validate(valid => {
+        if (valid) {
+          if (this.form.id != null) {
+            updateGatewayInfo(this.form).then(response => {
+              this.$modal.msgSuccess("修改成功");
+              this.open = false;
+              this.getList();
+            });
+          } else {
+            addGatewayInfo(this.form).then(response => {
+              this.$modal.msgSuccess("新增成功");
+              this.open = false;
+              this.getList();
+            });
+          }
         }
-      }).then(resp => {
-        this.tableData = resp.data.data.records
-        this.page.total = resp.data.data.total
-      })
+      });
     },
-    search() {
-      this.fetchDataPost()
+    /** 删除按钮操作 */
+    handleDelete(row) {
+      const ids = row.id || this.ids;
+      this.$modal.confirm('是否确认删除网关信息编号为"' + ids + '"的数据项？').then(function() {
+        return delGatewayInfo(ids);
+      }).then(() => {
+        this.getList();
+        this.$modal.msgSuccess("删除成功");
+      }).catch(() => {});
     },
-    add() {
-      axios.post('/mock/news/add', {
-        title: this.searchForm.title,
-        content: this.searchForm.content
-      }).then(resp => {
-        this.searchForm = {}
-        this.fetchDataPost()
-        this.$message.success(resp.data)
-      })
-    },
-    detail(id) {
-      this.dialogVisible = true
-      axios.get(`/mock/news/detail/${id}`)
-          .then(resp => {
-            this.form = resp.data.data
-          })
-    },
-    edit() {
-      this.dialogVisible = false
-      axios.put('/mock/news/edit', this.form)
-          .then(resp => {
-            this.fetchDataPost()
-            this.$message.success(resp.data)
-          })
-    },
-    del(id) {
-      axios.delete(`/mock/news/del/${id}`)
-          .then(resp => {
-            this.fetchDataPost()
-            this.$message.success(resp.data)
-          })
-    },
-    handleSizeChange(val) {
-      this.page.pageSize = val
-      this.fetchDataPost()
-    },
-    handleCurrentChange(val) {
-      this.page.current = val
-      this.fetchDataPost()
+    /** 导出按钮操作 */
+    handleExport() {
+      this.download('common/gatewayInfo/export', {
+        ...this.queryParams
+      }, `gatewayInfo_${new Date().getTime()}.xlsx`)
     }
   }
-}
+};
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-
-</style>
-
 ```
 
 ## 5. 引入MockJs
@@ -591,5 +843,278 @@ new Vue({
 }).$mount('#app')
 ```
 
+# 6. 常用的生成模板
 
+## 1. velocity
+
+```velocity
+
+import Mock from "mockjs";
+import MockParamsUtil from "@/utils/MockParamsUtil";
+import MockPageUtil from "@/utils/MockPageUtil";
+
+
+let {${businessName}List} = Mock.mock({
+    "${businessName}List|1-50": [
+        {
+            id: "@increment(1)",
+            #foreach($column in $columns)
+                #if($column.javaField != 'id' &&
+                    $column.javaField != 'createBy' &&
+                    $column.javaField!= 'createTime' &&
+                    $column.javaField!= 'updateBy' &&
+                    $column.javaField!= 'updateTime'
+                )
+                    #if(${column.javaType} == 'String')
+            ${column.javaField}: "@cword(3,6)",
+                    #end
+                    #if(${column.javaType} == 'Integer' ||
+                        ${column.javaType} == 'Long'
+                    )
+            ${column.javaField}: "@integer(0,100)",
+                    #end
+                    #if(${column.javaType} == 'Double')
+            ${column.javaField}: "@integer(0,100).@ingeter(0,9))",
+                    #end
+                    #if(${column.javaType} == 'Date')
+            ${column.javaField}: "@datetime(yyyy-MM-dd hh:mm:ss)",
+                    #end
+                #end
+            #end
+            createBy: "@cname(3)",
+            createTime: "@datetime(yyyy-MM-dd hh:mm:ss)",
+            updateBy: "@cname(3)",
+            updateTime: "@datetime(yyyy-MM-dd hh:mm:ss)"
+
+        }
+    ]
+})
+
+/**
+ * 分页查询数据
+ * @param params    参数
+ */
+Mock.mock(new RegExp("/${businessName}/list*"), 'get', (options) => {
+    let paramsMap = MockParamsUtil.getUrlParams(options.url)
+    const pageNum = paramsMap.get('pageNum')
+    const pageSize = paramsMap.get('pageSize')
+    let resultArr = [...${businessName}List]
+    // 过滤查询条件
+    resultArr = MockPageUtil.filterList(resultArr, paramsMap, 'pageNum', 'pageSize');
+    // 分页
+    const data = MockPageUtil.sliceList(resultArr, pageNum, pageSize);
+    return {
+        code: 200,
+        msg: 'success',
+        ...data
+    }
+})
+// 新增
+Mock.mock(new RegExp('/${businessName}/add${BusinessName}*'), 'post', (options) => {
+    const body = JSON.parse(options.body)
+        ${businessName}List = [
+        Mock.mock({
+            ...body,
+            id: "@increment(1)",
+            createBy: "@cname(3)",
+            createTime: "@now()",
+            updateBy: "@cname(3)",
+            updateTime: "@now()"
+        }),
+        ...${businessName}List
+    ]
+    return {
+        code: 200,
+        msg: 'success',
+        data: '添加成功'
+    }
+})
+// 删除
+Mock.mock(new RegExp('/${businessName}/*'), 'delete', (options) => {
+    const id = MockParamsUtil.getPathUrlParams(options.url)
+    ${businessName}List = ${businessName}List.filter(item => item.id != id)
+    return {
+        code: 200,
+        msg: 'success',
+        data: '删除成功'
+    }
+})
+// 获取详情
+Mock.mock(new RegExp('/${businessName}/*'), 'get', (options) => {
+    const id = MockParamsUtil.getPathUrlParams(options.url)
+    const data = ${businessName}List.find(item => item.id == id)
+    return {
+        code: 200,
+        msg: 'success',
+        data
+    }
+})
+// 编辑
+Mock.mock(new RegExp('/${businessName}/edit${BusinessName}*'), 'put', (options) => {
+    const body = JSON.parse(options.body)
+    if (body.id) {
+        ${businessName}List = ${businessName}List.map(item => {
+            if (item.id == body.id) {
+                return body
+            }
+            return item
+        })
+        return {
+            code: 200,
+            msg: 'success',
+            data: '编辑成功'
+        }
+    } else {
+        ${businessName}List = [
+            Mock.mock({
+                ...body,
+                id: "@increment(1)",
+                createBy: "@cname(3)",
+                createTime: "@now()",
+                updateBy: "@cname(3)",
+                updateTime: "@now()"
+            }),
+            ...${businessName}List
+        ]
+        return {
+            code: 200,
+            msg: 'success',
+            data: '添加成功'
+        }
+    }
+
+})
+```
+
+## 2. ejs 
+
+```e
+import Mock from "mockjs";
+import MockParamsUtil from "@/utils/MockParamsUtil";
+import MockPageUtil from "@/utils/MockPageUtil";
+
+
+let {<%= table.firstLowerClassName %>List} = Mock.mock({
+  "<%= table.firstLowerClassName %>List|1-10": [
+    {
+      <% columnList.forEach(function (item) { %>
+        <%= item.field %>: "@word(5)",
+      <% }) %>
+    }
+  ]
+})
+/** get请求分页 */
+Mock.mock(new RegExp("/<%= table.firstLowerClassName %>/page*"), 'get', (options) => {
+  let paramsMap = MockParamsUtil.getUrlParams(options.url)
+    const pageNum = paramsMap.get('pageNum')
+    const pageSize = paramsMap.get('pageSize')
+    let resultArr = [...<%= table.firstLowerClassName %>List]
+  // 过滤查询条件
+  resultArr = MockPageUtil.filterList(resultArr, dataJson);
+  // 分页
+  const data = MockPageUtil.sliceList( resultArr, pageNum, pageSize);
+  return {
+    code: 200,
+    msg: 'success',
+    data
+  }
+})
+
+/**
+ * 分页查询数据
+ * @param params    参数
+ */
+Mock.mock(new RegExp("/<%= table.firstLowerClassName %>/page*"), 'post', (options) => {
+  const dataJson = JSON.parse(options.body);
+  console.log(dataJson, 'dataJson')
+  const page = dataJson.page
+  // 过滤查询条件
+  <%= table.firstLowerClassName %>List = MockPageUtil.filterList(<%= table.firstLowerClassName %>List, dataJson);
+  // 分页
+  const data = MockPageUtil.sliceList(<%= table.firstLowerClassName %>List, page.current, page.pageSize);
+  return {
+    code: 200,
+    msg: 'success',
+    data
+  }
+})
+// 新增
+Mock.mock(new RegExp('/<%= table.firstLowerClassName %>/add*'), 'post', (options) => {
+  debugger
+  const body = JSON.parse(options.body)
+  <%= table.firstLowerClassName %>List = [
+    Mock.mock({
+      ...body,
+      id: "@increment(1)",
+      createBy: "@cname(3)",
+      createTime: "@now()",
+      updateBy: "@cname(3)",
+      updateTime: "@now()"
+    }),
+    ...<%= table.firstLowerClassName %>List
+  ]
+  return {
+    code: 200,
+    msg: 'success',
+    data: '添加成功'
+  }
+})
+// 删除
+Mock.mock(new RegExp('/<%= table.firstLowerClassName %>/*'), 'delete', (options) => {
+  debugger
+  const id = MockParamsUtil.getPathUrlParams(options.url)
+  <%= table.firstLowerClassName %>List = <%= table.firstLowerClassName %>List.filter(item => item.id != id)
+  return {
+    code: 200,
+    msg: 'success',
+    data: '删除成功'
+  }
+})
+// 获取详情
+Mock.mock(new RegExp('/<%= table.firstLowerClassName %>/*'), 'get', (options) => {
+  debugger
+  const id = MockParamsUtil.getPathUrlParams(options.url)
+  const data = <%= table.firstLowerClassName %>List.find(item => item.id == id)
+  return {
+    code: 200,
+    msg: 'success',
+    data
+  }
+})
+// 编辑
+Mock.mock(new RegExp('/<%= table.firstLowerClassName %>/edit*'), 'post', (options) => {
+  const body = JSON.parse(options.body)
+  if (body.id) {
+    <%= table.firstLowerClassName %>List = <%= table.firstLowerClassName %>List.map(item => {
+      if (item.id == body.id) {
+        return body
+      }
+      return item
+    })
+   return {
+   	code: 200,
+   	msg: 'success',
+   	data: '编辑成功'
+   } 
+  } else {
+    <%= table.firstLowerClassName %>List = [
+      Mock.mock({
+        ...body,
+        id: "@increment(1)",
+        createBy: "@cname(3)",
+        createTime: "@now()",
+        updateBy: "@cname(3)",
+        updateTime: "@now()",
+      }),
+      ...<%= table.firstLowerClassName %>List
+    ]
+    return {
+      code: 200,
+      msg: 'success',
+      data: '添加成功'
+    }
+  }
+
+})    
+```
 
