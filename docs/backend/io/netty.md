@@ -1,6 +1,6 @@
 # 1. 概述
 
-> [当前进度 116/157](https://www.bilibili.com/video/BV1py4y1E7oA?p=116)
+> [当前进度 130/157](https://www.bilibili.com/video/BV1py4y1E7oA?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&spm_id_from=333.788.player.switch&p=130)
 >
 > Netty是一个异步的，基于事件驱动的网络应用框架，用于速开发可维护、高性能的网络服务器和客户端。
 
@@ -1518,3 +1518,521 @@ public class SharedMessageCodec extends MessageToMessageCodec<ByteBuf, Message> 
 }
 ```
 
+### 5. 自定义序列化方式
+
+1. 实现序列化接口
+
+```java
+public interface Serializer {
+
+    <T> T deserialize(Class<T> clazz, byte[] bytes);
+
+    <T> byte[] serialize(T object);
+
+    enum Algorithm implements Serializer {
+        JAVA{
+            @Override
+            public <T> T deserialize(Class<T> clazz, byte[] bytes) {
+                try {
+                    ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
+                    return  (T) ois.readObject();
+                } catch (Exception e) {
+                    throw  new RuntimeException("反序列化失败", e);
+                }
+
+            }
+
+            @Override
+            public <T> byte[] serialize(T object) {
+                try {
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ObjectOutputStream oos = new ObjectOutputStream(baos);
+                    oos.writeObject(object);
+                    return baos.toByteArray();
+                } catch (Exception e) {
+                    throw new RuntimeException("序列化失败", e);
+                }
+            }
+        },
+        JSON{
+            private Gson gson = new Gson();
+            @Override
+            public <T> T deserialize(Class<T> clazz, byte[] bytes) {
+                return gson.fromJson(new String(bytes, StandardCharsets.UTF_8), clazz);
+            }
+
+            @Override
+            public <T> byte[] serialize(T object) {
+                return gson.toJson(object).getBytes(StandardCharsets.UTF_8);
+            }
+        }
+        ;
+    }
+}
+```
+
+2. 创建配置文件和读取配置类
+
+```java
+public abstract class Config {
+    static Properties properties;
+
+    static {
+        try(InputStream in = Config.class.getClassLoader().getResourceAsStream("application.properties")) {
+            properties = new Properties();
+            properties.load(in);
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    public static int getServerPort() {
+        String port = properties.getProperty("server.port");
+        if (StrUtil.isBlank(port)) {
+            return 1024;
+        } else {
+            return Integer.parseInt(port);
+        }
+    }
+
+    public static Serializer.Algorithm getSerializerAlgorithm() {
+        String property = properties.getProperty("serializer.algorithm");
+        if (StrUtil.isBlank(property)) {
+            return Serializer.Algorithm.JAVA;
+        }
+        return Serializer.Algorithm.valueOf(property);
+    }
+}
+```
+
+```properties
+server.port=1024
+serializer.algorithm=JSON
+```
+
+3. 修改编解码器
+
+```java
+@Slf4j
+@ChannelHandler.Sharable
+public class SharedMessageCodec extends MessageToMessageCodec<ByteBuf, Message> {
+    private Gson gson = new Gson();
+    @Override
+    protected void encode(ChannelHandlerContext ctx, Message msg, List<Object> outList) throws Exception {
+        ByteBuf out = ctx.alloc().buffer();
+        // 1. 8 字节的魔数
+        out.writeBytes("AreYouOk".getBytes());
+        // 2. 1 字节的版本
+        out.writeByte(1);
+        // 3. 1 字节的序列化方式 0jdk 1json 2protobuf 3kryo
+        Serializer.Algorithm serializerAlgorithm = Config.getSerializerAlgorithm();
+        out.writeByte(serializerAlgorithm.ordinal());
+        // 4. 1 字节的指令类型
+        out.writeByte(msg.getMessageType());
+        // 5. 4 个字节的请求序号
+        out.writeInt(msg.getSequenceId());
+        // 5.1 无意义字节，让内容前的字节数对接2的整数倍
+        out.writeByte(0xff);
+        // 6. 正文的长度 JDK序列化
+        byte[] bytes = serializerAlgorithm.serialize(msg);
+        out.writeInt(bytes.length);
+        // 7. 正文
+        out.writeBytes(bytes);
+        outList.add(out);
+    }
+
+    @Override
+    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        // 1. 从头读取八个字节魔数
+        byte[] magicByte = new byte[8];
+        String magicStr = in.readBytes(magicByte).toString(StandardCharsets.UTF_8);
+        // 2. 读取版本
+        byte version = in.readByte();
+        // 3. 读取序列化方式
+        byte serializerType = in.readByte();
+        // 4. 读取指令类型
+        byte messageType = in.readByte();
+        // 5. 读取请求序号
+        int sequenceId = in.readInt();
+        // 6. 读取无意义字节
+        in.readByte();
+        // 7. 读取正文长度
+        int length = in.readInt();
+        // 8. 读取正文
+        byte[] bytes = new byte[length];
+        in.readBytes(bytes);
+        // 获取反序列化算法
+        Serializer.Algorithm algorithm = Serializer.Algorithm.values()[serializerType];
+        // 确定具体的消息类型
+        Object message = algorithm.deserialize(Message.getMessageClass(messageType), bytes);
+        // 10. 加入到 out 中
+        out.add(message);
+        // 打印数据
+        log.debug("{},{},{},{},{},{}",
+                magicStr, version, serializerType, messageType, sequenceId, length);
+        log.debug("{}", message);
+    }
+}
+```
+
+4. 测试收发消息
+
+```java
+package net.lesscoding;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import lombok.extern.slf4j.Slf4j;
+import net.lesscoding.common.Config;
+import net.lesscoding.message.LoginRequestMessage;
+import net.lesscoding.message.Message;
+import net.lesscoding.protocol.Serializer;
+import net.lesscoding.protocol.SharedMessageCodec;
+import org.junit.Test;
+
+/**
+ * @author eleven
+ * @date 2024/12/3 11:14
+ * @apiNote
+ */
+@Slf4j
+public class SerializerTest {
+    @Test
+    public void serializerTest() {
+        LoggingHandler debugLogger = new LoggingHandler(LogLevel.DEBUG);
+        SharedMessageCodec messageCodec = new SharedMessageCodec();
+        EmbeddedChannel channel = new EmbeddedChannel(debugLogger, messageCodec, debugLogger);
+        LoginRequestMessage loginRequestMessage = new LoginRequestMessage("zhangsan", "123");
+        //channel.writeOutbound(loginRequestMessage);
+        channel.writeInbound(messageToBytes(loginRequestMessage));
+    }
+
+    public static ByteBuf messageToBytes(Message msg) {
+        int ordinal = Config.getSerializerAlgorithm().ordinal();
+        ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer();
+        buffer.writeBytes("AreYouOk".getBytes())
+                .writeByte(1)
+                .writeByte(ordinal)
+                .writeByte(msg.getMessageType())
+                .writeInt(msg.getSequenceId())
+                .writeByte(0xff);
+        byte[] bytes = Serializer.Algorithm.values()[ordinal].serialize(msg);
+        buffer.writeInt(bytes.length);
+        buffer.writeBytes(bytes);
+        return buffer;
+    }
+}
+```
+
+# 5. 优化与源码
+
+> [源码详解链接](https://www.bilibili.com/video/BV1py4y1E7oA?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&spm_id_from=333.788.player.switch&p=126)
+
+## 1. 参数调优
+
+### 1. CONNECT_TIMEOUT_MILLIS
+
+- 属于 `SocketChannal` 参数
+- <font color=red>用在客户端建立连接时，如果在指定毫秒内无法连接，会抛出timeout异常</font>
+- SO_TIMEOUT 主要用在阻塞 10，阻塞 10 中 accept，read 等都是无限等待的，如果不希望永远阻塞使用用它调整超时时间
+
+```java
+@Slf4j
+public class ConnectionTimeoutTest {
+    @Test
+    public void timeoutTest() {
+        //new ServerBootstrap().option() 是给ServerSocketChannel设置参数的
+        //new ServerSocketChannel().childOption() 是给SocketChannel设置参数的
+        NioEventLoopGroup group = new NioEventLoopGroup();
+        try {
+            Bootstrap bootstrap = new Bootstrap()
+                    .group(group)
+                    .channel(NioSocketChannel.class)
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                    .handler(new LoggingHandler());
+            ChannelFuture future = bootstrap.connect(Const.HOST, Const.PORT).sync();
+            future.channel().closeFuture().sync();
+        } catch (Exception e) {
+            log.error("连接超时", e);
+        } finally {
+            group.shutdownGracefully();
+        }
+    }
+}
+```
+
+### 2. SO_BACKLOG
+
+- 属于`ServerSocketChannel`参数
+
+> `sync_queue`：半连接队列，还没有完成三次握手的放到这里
+>
+> `accept_queue`: 全连接队列，完成三次握手的放这里
+
+```mermaid
+sequenceDiagram
+    participant client
+    participant server
+    participant sync_queue
+    participant accept_queue
+    server->>server: bind()
+  
+    client->>client: connect()
+    server->>server: listen()
+    note left of client: SYNC_SEND
+    client->>server: 1. SYN
+    server->>sync_queue: put
+    note left of sync_queue: SYNC_RCVD
+    server->>client: 2. SYN + ACK
+    note left of client: ESTABLISHED
+    client->>server: 3. ACK
+    sync_queue->>accept_queue: put
+    note left of sync_queue: ESTABLISHED
+     accept_queue-->>server: 
+    server->>server: accept()
+```
+
+1. 第一次握手，client 发送 SYN 到 server，状态修改为SYN_SEND，server 收到，状态改变为 SYN_REVD，并将该请求放入 sync queue 队列
+
+2. 第二次握手，server 回复 SYN+ACK给 client，client 收到，状态改变为 ESTABLISHED，并发送 ACK给server
+
+3. 3.第三次握手，server 收到 ACK，状态改变为 ESTABLISHED，将该请求从 sync queue 放入 accept queue
+
+**其中**
+
+- 在 linux 2.2 之前，backlog 大小包括了两个队列的大小，在 2.2 之后，分别用下面两个参数来控制
+
+- sync queue-半连接队列
+
+  > 大小通过`/proc/sys/net/ipv4/tcp_max_syn_backlog`指定，在 `syncookies` 启用的情况下，逻辑上没有最大值限制，这个设置便被忽略
+
+- accept queue-全连接队列。
+    
+    > ​	其大小通过`/proc/sys/net/core/somnaxconn` 指定，在使用 listen 函数时，内核会根据传入的 backlog 参数与系统参数，取二者的较小值.
+    > ​	如果 accpet queue 队列满了，server 将发送一个拒绝连接的错误信息到 client。
+
+**Netty中，可以通过 option(ChannelOption.SO_BACKLOG)来设置大小**
+
+```java
+@Test
+public void backlogServerTest() throws InterruptedException {
+    /**
+     * 只有在accept处理不过来的时候，才会放到全连接队列里。
+     * 测试的时候需要再 {@link NioEventLoop#processSelectedKey(SelectionKey, AbstractNioChannel)}这个类的 696行打断点
+     *
+     * if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
+     *     unsafe.read();
+     * }
+     *
+     */
+
+    new ServerBootstrap()
+            .group(new NioEventLoopGroup())
+            .option(ChannelOption.SO_BACKLOG, 1024)
+            .channel(NioServerSocketChannel.class)
+            .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                @Override
+                protected void initChannel(NioSocketChannel ch) throws Exception {
+                    ch.pipeline().addLast(new LoggingHandler());
+                }
+            })
+            .bind(Const.PORT);
+    new CountDownLatch(1).await();
+}
+```
+
+> SO_BACKLOG的默认值如下, Windows NT 4.0+ 默认200， Linux和Mac 128
+>
+> 1. 这个值是在bind方法中被调用的， 所以先找到`ServerSocketChannel`的bind方法，查到调用这个方法的类
+> 2. 找到`io.netty.channel.socket.nio.NioServerSocketChannel#doBind`方法，可以看到用的是`config.getBacklog()`
+> 3. 查找上一步的实现，最终定位到`DefaultServerSocketChannelConfig`中， 
+>
+> ```java
+> private volatile int backlog = NetUtil.SOMAXCONN;
+> ```
+>
+> 4. 查看具体代码如下
+
+```java
+// - Windows NT Server 4.0+: 200
+// - Linux and Mac OS X: 128
+int somaxconn = PlatformDependent.isWindows() ? 200 : 128;
+File file = new File("/proc/sys/net/core/somaxconn");
+BufferedReader in = null;
+try {
+    // file.exists() may throw a SecurityException if a SecurityManager is used, so execute it in the
+    // try / catch block.
+    // See https://github.com/netty/netty/issues/4936
+    if (file.exists()) {
+        in = new BufferedReader(new FileReader(file));
+        somaxconn = Integer.parseInt(in.readLine());
+        if (logger.isDebugEnabled()) {
+            logger.debug("{}: {}", file, somaxconn);
+        }
+    } else {}
+}
+```
+
+### 3. ulimit -n
+
+>  操作系统参数，限制进程同时打开的最大文件描述符的数量。
+>
+> Linux系统中普通文件或者是Socket都是通过文件描述符`FD`,当文件描述符到达上限，再想打开文件就会报错 Too many open file，也就是再想创建连接就连接不了了。
+>
+> 这个上限是为了保护系统不会崩溃而设置的，防止每个进程打开的文件或者socket太多了。
+>
+> 如果服务器想要应对高并发的场景，就需要改变这个`ulimit -n`的值，这个属于是临时调整，建议放到启动脚本里边。
+>
+> ```shell
+> ulimit -n 65535
+> ```
+
+### 4. TCP_NODELAY
+
+> `SocketChannel`参数, `netty`中默认设置为 false , 开启了`nagle`算法，攒够一定数据量才发送。
+>
+> 服务器端建议设置为true，每次都直接发出去
+>
+> ```java
+> new ServerBootstrap().childOption(ChannelOption.TCP_NODELAY, true)
+> ```
+
+### 5. SO_SENDBUF & SO_RCVBUF
+
+- SO_SNDBUF 属于 SocketChannal 参数
+- SO_RCVBUF 既可用于 SocketChannal参数，也可以用于 ServerSocketChannal 参数(建议设置到ServerSocketChannal上)
+
+> 决定TCP滑动窗口的上限，不需要管让操作系统自己管就行了、
+
+### 6. ALLOCATOR
+
+> SocketChannel参数，用来分配`ByteBuf`， `ctx.alloc()`.
+>
+> 在`ByteBufUtil`中可以看到是通过系统变量`io.netty.allocator.type`来设置使用那种ByteBuf的
+>
+> ```java
+> String allocType = SystemPropertyUtil.get(
+>         "io.netty.allocator.type", PlatformDependent.isAndroid() ? "unpooled" : "pooled");
+> ```
+>
+> 在`PlatformDependent`中可以看到通过系统变量`io.netty.noPreferDirect`来控制使用堆内存还是直接内存
+>
+> ```java
+> DIRECT_BUFFER_PREFERRED = CLEANER != NOOP && 
+>     !SystemPropertyUtil.getBoolean("io.netty.noPreferDirect", false);
+> ```
+>
+> <font color=red>从网络上读取数据的时候，直接内存要比堆内存效率更高。所哟netty默认IO操作是直接内存</font>
+
+- 服务器代码
+
+```java
+@Test
+public void byteBufServerTest() throws InterruptedException {
+    new ServerBootstrap()
+            .group(new NioEventLoopGroup())
+            .channel(NioServerSocketChannel.class)
+            .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                @Override
+                protected void initChannel(NioSocketChannel ch) throws Exception {
+                    ch.pipeline()
+                            .addLast(new LoggingHandler())
+                            .addLast(new ChannelInboundHandlerAdapter() {
+                                @Override
+                                public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                    ByteBufAllocator alloc = ctx.alloc();
+                                    log.info("alloc buffer: {}", alloc);
+                                    super.channelRead(ctx, msg);
+                                }
+                            });
+
+                }
+            })
+            .bind(Const.PORT);
+    new CountDownLatch(1).await();
+}
+```
+
+- 客户端代码
+
+```java
+@Test
+public void backlogClientTest() throws InterruptedException {
+    NioEventLoopGroup group = new NioEventLoopGroup();
+    Bootstrap bootstrap = new Bootstrap()
+            .group(group)
+            .channel(NioSocketChannel.class)
+            .handler(new ChannelInitializer<NioSocketChannel>() {
+                @Override
+                protected void initChannel(NioSocketChannel ch) throws Exception {
+                    ch.pipeline()
+                            .addLast(new LoggingHandler())
+                            .addLast(new ChannelInboundHandlerAdapter() {
+                                @Override
+                                public void channelActive(ChannelHandlerContext ctx) throws Exception {
+                                    ctx.writeAndFlush(ctx.alloc().buffer().writeBytes("Hello World".getBytes()));
+                                    super.channelActive(ctx);
+                                }
+                            });
+                }
+            });
+    ChannelFuture future = bootstrap.connect(Const.HOST, Const.PORT).sync();
+    future.channel().closeFuture().sync();
+}
+```
+
+### 7. RCVBUF_ALLOCATOR
+
+> 属于`SocketChannel`参数，负责入站数据的分配，决定入站缓冲区的大小(并可动态调整)，统一采用 direct 直接内存，具体池化还是非池化由 allocator 决定。
+>
+> <font color=red>控制 netty 接受缓冲区的大小</font>
+>
+> 1. 在 `AbstractNioByteChannel$NioByteUnsafe`的`read`方法中，可以看到由`allocHandle`创建了`byteBuf`。
+>
+> 2. `io.netty.channel.AbstractChannel.AbstractUnsafe#recvBufAllocHandle`创建的`allocHandle`
+>
+> 3. `io.netty.channel.DefaultChannelConfig#DefaultChannelConfig(io.netty.channel.Channel)`后边的参数决定了缓冲区大小
+>
+> ```java
+> // 最小64 默认 2048 最大65536
+> public AdaptiveRecvByteBufAllocator() {
+>     // 64 2048 65536
+>     this(DEFAULT_MINIMUM, DEFAULT_INITIAL, DEFAULT_MAXIMUM);
+> }
+> ```
+
+
+
+```java
+@Override
+public final void read() {
+    final ChannelConfig config = config();
+    if (shouldBreakReadReady(config)) {
+        clearReadPending();
+        return;
+    }
+    final ChannelPipeline pipeline = pipeline();
+    // byteBuf的分配器，决定是使用池化还是非池化的byteBuf
+    final ByteBufAllocator allocator = config.getAllocator();
+    final RecvByteBufAllocator.Handle allocHandle = recvBufAllocHandle();
+    allocHandle.reset(config);
+
+    ByteBuf byteBuf = null;
+    boolean close = false;
+    try {
+        do {
+            // 是RecvByteBufAllocator的内部类，是否使用直接内存还是堆内存等由这个控制
+            byteBuf = allocHandle.allocate(allocator);
+            allocHandle.lastBytesRead(doReadBytes(byteBuf));
+        }
+        ///...
+    }
+}
+```
+
+## 2. RPC框架
+
+> 为了简化起见，在原来的联调项目上新增RPC请求和响应消息
