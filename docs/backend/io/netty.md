@@ -1,6 +1,8 @@
 # 1. 概述
 
-> [当前进度 130/157](https://www.bilibili.com/video/BV1py4y1E7oA?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&spm_id_from=333.788.player.switch&p=130)
+> [当前进度 157/157](https://www.bilibili.com/video/BV1py4y1E7oA?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&spm_id_from=333.788.player.switch&p=130)
+>
+> [代码仓库](https://gitcode.com/qq_42059717/netty_itcast/overview)
 >
 > Netty是一个异步的，基于事件驱动的网络应用框架，用于速开发可维护、高性能的网络服务器和客户端。
 
@@ -1727,7 +1729,7 @@ public class SerializerTest {
 }
 ```
 
-# 5. 优化与源码
+# 5. 参数调优 与 自定义 RPC框架
 
 > [源码详解链接](https://www.bilibili.com/video/BV1py4y1E7oA?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&spm_id_from=333.788.player.switch&p=126)
 
@@ -1810,7 +1812,7 @@ sequenceDiagram
   > 大小通过`/proc/sys/net/ipv4/tcp_max_syn_backlog`指定，在 `syncookies` 启用的情况下，逻辑上没有最大值限制，这个设置便被忽略
 
 - accept queue-全连接队列。
-    
+  
     > ​	其大小通过`/proc/sys/net/core/somnaxconn` 指定，在使用 listen 函数时，内核会根据传入的 backlog 参数与系统参数，取二者的较小值.
     > ​	如果 accpet queue 队列满了，server 将发送一个拒绝连接的错误信息到 client。
 
@@ -2036,3 +2038,795 @@ public final void read() {
 ## 2. RPC框架
 
 > 为了简化起见，在原来的联调项目上新增RPC请求和响应消息
+
+### 1. 新增消息类型
+
+- Message新增两种类型
+
+```java
+@Data
+public abstract class Message implements Serializable {
+    public static Class<?> getMessageClass(int messageType) {
+        if (CollUtil.isEmpty(messageClasses)) {
+            Collections.addAll(messageClasses,
+                    RpcRequestMessage.class, RpcResponseMessage.class
+            );
+        }
+        return messageClasses.get(messageType);
+    }
+	// 省略原来的代码
+
+    public static final int RPC_MESSAGE_TYPE_REQUEST = 16;
+    public static final int RPC_MESSAGE_TYPE_RESPONSE = 17;
+
+    private static final List<Class> messageClasses = new ArrayList<>();
+}
+```
+
+- 新增请求消息
+
+```java
+@Data
+@ToString(callSuper = true)
+public class RpcRequestMessage extends Message {
+    @Override
+    public int getMessageType() {
+        return Message.RPC_MESSAGE_TYPE_REQUEST;
+    }
+
+    private String interfaceName;
+
+    private String methodName;
+
+    private Class<?> returnType;
+
+    private Class[] paramsType;
+
+    private Object[] params;
+
+    public RpcRequestMessage(int seq, String interfaceName, String methodName, Class<?> returnType, Class[] paramsType, Object[] params) {
+        super.setSequenceId(seq);
+        this.interfaceName = interfaceName;
+        this.methodName = methodName;
+        this.returnType = returnType;
+        this.paramsType = paramsType;
+        this.params = params;
+    }
+}
+```
+
+- 新增响应消息
+
+```java
+@Data
+@ToString(callSuper = true)
+public class RpcResponseMessage extends Message {
+    @Override
+    public int getMessageType() {
+        return Message.RPC_MESSAGE_TYPE_RESPONSE;
+    }
+
+    private Object returnValue;
+
+    private Exception exceptionValue;
+}
+```
+
+### 2. 新增客户端和服务器
+
+- 服务端
+
+```java
+public class RpcServer {
+    public static void main(String[] args) {
+        NioEventLoopGroup boss = new NioEventLoopGroup();
+        NioEventLoopGroup worker = new NioEventLoopGroup();
+        LoggingHandler logger = new LoggingHandler();
+        SharedMessageCodec messageCodec = new SharedMessageCodec();
+        RpcRequestMessageHandler rpcRequestHandler = new RpcRequestMessageHandler();
+        try {
+            ServerBootstrap serverBootstrap = new ServerBootstrap()
+                    .group(boss, worker)
+                    .channel(NioServerSocketChannel.class)
+                    .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                        @Override
+                        protected void initChannel(NioSocketChannel ch) throws Exception {
+                            ch.pipeline()
+                                    .addLast(new ProtocolFrameDecoder())
+                                    .addLast(logger)
+                                    .addLast(messageCodec)
+                                    .addLast(rpcRequestHandler);
+                        }
+                    });
+            ChannelFuture future = serverBootstrap.bind(Const.PORT).sync();
+            future.channel().closeFuture().sync();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            boss.shutdownGracefully();
+            worker.shutdownGracefully();
+        }
+
+    }
+}
+```
+
+- 客户端
+
+> 第一次调试的时候并没有添加 `ChannelFuture` 的监听器，是因为 `FLUSH` 之后没有打印日志，排查问题可能是 `MessageCodec` 出错才添加的监听器。
+>
+> 想要获取 `ChannelFuture` 结果有两种方式，一种是 `addListener` 一种是 sync
+>
+> 排查得知是因为Gson无法对Class进行序列化和反序列化
+
+```java
+@Slf4j
+public class RpcClient {
+    public static void main(String[] args) {
+        LoggingHandler loggingHandler = new LoggingHandler();
+        SharedMessageCodec messageCodec = new SharedMessageCodec();
+        NioEventLoopGroup group = new NioEventLoopGroup();
+        RpcResponseMessageHandler rpcResponseMessageHandler = new RpcResponseMessageHandler();
+        try {
+            Bootstrap bootstrap = new Bootstrap()
+                    .group(group)
+                    .channel(NioSocketChannel.class)
+                    .handler(new ChannelInitializer<NioSocketChannel>() {
+                        @Override
+                        protected void initChannel(NioSocketChannel ch) throws Exception {
+                            ch.pipeline()
+                                    .addLast(new ProtocolFrameDecoder())
+                                    .addLast(loggingHandler)
+                                    .addLast(messageCodec)
+                                    .addLast(rpcResponseMessageHandler);
+                        }
+                    });
+            Channel channel = bootstrap.connect(Const.HOST, Const.PORT).sync().channel();
+
+            ChannelFuture channelFuture = channel.writeAndFlush(new RpcRequestMessage(
+                    1,
+                    "net.lesscoding.rpc.service.HelloService",
+                    "sayHello",
+                    String.class,
+                    new Class[]{String.class},
+                    new Object[]{"Listen"}
+            ));
+            //
+            channelFuture.addListener(promise -> {
+                if (!promise.isSuccess()) {
+                    Throwable cause = promise.cause();
+                    log.error("发生错误：", cause);
+                }
+            });
+            ChannelFuture future = channel.closeFuture().sync();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            group.shutdownGracefully();
+        }
+    }
+}
+```
+
+- Gson序列化和反序列化类
+
+```java
+public class ClassCodec implements JsonSerializer<Class<?>>, JsonDeserializer<Class<?>> {
+    @Override
+    public Class deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+        String className = json.getAsString();
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            throw new JsonParseException(e);
+        }
+    }
+
+    @Override
+    public JsonElement serialize(Class src, Type typeOfSrc, JsonSerializationContext context) {
+        // class -> json
+        return new JsonPrimitive(src.getName());
+    }
+}
+```
+
+
+
+### 3. 新增请求和响应的handler
+
+- 请求消息处理器
+
+```java
+@Slf4j
+@ChannelHandler.Sharable
+public class RpcRequestMessageHandler extends SimpleChannelInboundHandler<RpcRequestMessage> {
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, RpcRequestMessage msg) throws Exception {
+        log.info("接收到客户端的请求：{}", msg);
+        RpcResponseMessage response = new RpcResponseMessage();
+        // 将请求和响应的序列id对应。
+        response.setSequenceId(msg.getSequenceId());
+        try {
+            // 反射调用 如果是Spring应用，直接从BeanFactory获取就行了
+            Object service = ServiceFactory.getService(Class.forName(msg.getInterfaceName()));
+            Method method = service.getClass()
+                    .getMethod(msg.getMethodName(), msg.getParamsType());
+            Object invoke = method.invoke(service, msg.getParams());
+            response.setReturnValue(invoke);
+        } catch (Exception e) {
+            response.setExceptionValue(new RuntimeException("服务器异常" + e.getCause().getMessage()));
+        }
+        ctx.writeAndFlush(response);
+
+    }
+
+    public static void main(String[] args) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        RpcRequestMessage msg = new RpcRequestMessage(
+                1,
+                "net.lesscoding.rpc.service.HelloService",
+                "sayHello",
+                String.class,
+                new Class[]{String.class},
+                new Object[]{"张三"}
+        );
+        // 反射调用
+        HelloService helloService = (HelloService) ServiceFactory.getService(Class.forName(msg.getInterfaceName()));
+        Method method = helloService.getClass()
+                .getMethod(msg.getMethodName(), msg.getParamsType());
+        System.out.println(method.invoke(helloService, msg.getParams()));
+    }
+}
+```
+
+- 响应消息处理器。
+
+```java
+@Slf4j
+@ChannelHandler.Sharable
+public class RpcResponseMessageHandler extends SimpleChannelInboundHandler<RpcResponseMessage> {
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, RpcResponseMessage msg) throws Exception {
+        log.info("接收到服务端的响应：{}", msg);
+    }
+}
+```
+
+- 获取反射接口实现类工厂
+
+```java
+public class ServiceFactory {
+    static Properties properties;
+
+    static Map<Class<?>, Object> map = new ConcurrentHashMap<>();
+
+    static {
+        try (InputStream in = Config.class.getClassLoader().getResourceAsStream("application.properties")){
+            properties = new Properties();
+            properties.load(in);
+            Set<String> names = properties.stringPropertyNames();
+            for (String name : names) {
+                if (name.endsWith("Service")) {
+                    Class<?> interfaceClass = Class.forName(name);
+                    Class<?> instanceClass = Class.forName(properties.getProperty(name));
+                    map.put(interfaceClass, instanceClass.newInstance());
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static <T> T getService(Class<T> clazz) {
+        return (T) map.get(clazz);
+    }
+}
+```
+
+### 4. 修改自定义序列化接口
+
+```java
+enum Algorithm implements Serializer {
+
+    JSON{
+        // 主要是将自定义的这个Codec注册到gson中，
+        private Gson gson = new GsonBuilder()
+                .registerTypeAdapter(Class.class, new ClassCodec())
+                .create();;
+        @Override
+        public <T> T deserialize(Class<T> clazz, byte[] bytes) {
+            return gson.fromJson(new String(bytes, StandardCharsets.UTF_8), clazz);
+        }
+
+        @Override
+        public <T> byte[] serialize(T object) {
+            return gson.toJson(object).getBytes(StandardCharsets.UTF_8);
+        }
+    };
+}
+```
+
+### 5. 改造客户端
+
+> 改造客户端，将 channel 抽离出来，使其能够一直发送消息.
+>
+> 
+
+```java
+@Slf4j
+public class RpcClientManager {
+    private static volatile Channel channel;
+    private static final Object LOCK = new Object();
+    
+    /**
+     * 测试方法
+     * 当前存在一个问题，就是所有的方法都需要转换成这种反射的形式调用
+     * 相较于传统的 new HelloService().sayHell("李四") 有些麻烦
+     * 还需要进一步的改进
+     * @param args
+     */
+    public static void main(String[] args) {
+        channel().writeAndFlush(new RpcRequestMessage(
+                2,
+                "net.lesscoding.rpc.service.HelloService",
+                "sayHello",
+                String.class,
+                new Class[]{String.class},
+                new Object[]{"李四"}
+        ));
+    }
+    
+    public static Channel channel() {
+        if (channel != null) {
+            return channel;
+        }
+        /**
+         * 防止有两个线程 t1 t2同时进来时 channel 为空。
+         * t1 使用 initChannel 创建线程之后，t2进来再次初始化 channel
+         * 也称之为双检锁, 在 1.5之前可能因为指令重排序出现问题，
+         * 使用 volatile 防止指令重排序, 保证双检锁的正确性
+         */
+        synchronized (LOCK) {
+            if (channel != null) {
+                return channel;
+            }
+            initChannel();
+            return channel;
+        }
+    }
+
+    /**
+     * 初始化channel
+     */
+    private static void initChannel() {
+        LoggingHandler loggingHandler = new LoggingHandler();
+        SharedMessageCodec messageCodec = new SharedMessageCodec();
+        NioEventLoopGroup group = new NioEventLoopGroup();
+        RpcResponseMessageHandler rpcResponseMessageHandler = new RpcResponseMessageHandler();
+        Bootstrap bootstrap = new Bootstrap()
+                .group(group)
+                .channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<NioSocketChannel>() {
+                    @Override
+                    protected void initChannel(NioSocketChannel ch) throws Exception {
+                        ch.pipeline()
+                                .addLast(new ProtocolFrameDecoder())
+                                .addLast(loggingHandler)
+                                .addLast(messageCodec)
+                                .addLast(rpcResponseMessageHandler);
+                    }
+                });
+        try {
+            channel = bootstrap.connect(Const.HOST, Const.PORT).sync().channel();
+            // 关闭channel不能使用sync让客户端阻塞，所以使用addListener
+            channel.closeFuture().addListener(future -> group.shutdownGracefully());
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+```
+
+> 通过创建代理对象，将反射调用的方式变为常规调用方式
+
+```java
+public class RpcClientManager {
+    // 省略上边的代码
+
+    /**
+     * 测试方法
+     * 当前存在一个问题，就是所有的方法都需要转换成这种反射的形式调用
+     * 相较于传统的 new HelloService().sayHell("李四") 有些麻烦
+     * 还需要进一步的改进
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        HelloService proxyService = getProxyService(HelloService.class);
+        proxyService.sayHello("李四");
+        proxyService.sayHello("张三");
+    }
+
+    /**
+     * 创建代理对象
+     *
+     * @param serviceClass 代理对象的接口
+     * @param <T>          泛型
+     * @return 代理对象
+     */
+    public static <T> T getProxyService(Class<T> serviceClass) {
+        ClassLoader loader = serviceClass.getClassLoader();
+        Class<?>[] interfaces = new Class[]{serviceClass};
+        // 代理对象任何调用的方法都会被后边的callback接收到
+        Object o = Proxy.newProxyInstance(loader, interfaces, (proxy, method, args) -> {
+            // 1. 将方法调用转换成消息对象
+            RpcRequestMessage msg = new RpcRequestMessage(
+                    SequenceIdGenerator.nextId(),
+                    serviceClass.getName(),
+                    method.getName(),
+                    method.getReturnType(),
+                    method.getParameterTypes(),
+                    args
+            );
+            // 2. 将消息对象发出去
+            channel().writeAndFlush(msg);
+            return null;
+        });
+        return (T) o;
+    }
+}
+```
+
+> 进一步改造，让每个线程都接收到响应消息。
+
+- 改造代理对象，使用Promise获取结果
+
+```java
+public static <T> T getProxyService(Class<T> serviceClass) {
+    ClassLoader loader = serviceClass.getClassLoader();
+    Class<?>[] interfaces = new Class[]{serviceClass};
+    // 代理对象任何调用的方法都会被后边的callback接收到
+    Object o = Proxy.newProxyInstance(loader, interfaces, (proxy, method, args) -> {
+        // 1. 将方法调用转换成消息对象
+        RpcRequestMessage msg = new RpcRequestMessage(
+                SequenceIdGenerator.nextId(),
+                serviceClass.getName(),
+                method.getName(),
+                method.getReturnType(),
+                method.getParameterTypes(),
+                args
+        );
+        // 2. 将消息对象发出去
+        channel().writeAndFlush(msg);
+        // 3. 创建一个空的Promise对象来接收结果
+        DefaultPromise<?> promise = new DefaultPromise<>(channel().eventLoop());
+        RpcResponseMessageHandler.PROMISE_MAP.put(msg.getSequenceId(), promise);
+        // 4. 等待await结果
+        Promise<?> await = promise.await();
+        // 5. 结果返回
+        if (await.isSuccess()) {
+            return promise.getNow();
+        } else {
+            throw new RuntimeException(await.cause());
+        }
+    });
+    return (T) o;
+}
+```
+
+- 改造响应处理器
+
+```java
+@Slf4j
+@ChannelHandler.Sharable
+public class RpcResponseMessageHandler extends SimpleChannelInboundHandler<RpcResponseMessage> {
+    // seqId， 结果
+    public   static final Map<Integer, Promise> PROMISE_MAP = new ConcurrentHashMap<>();
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, RpcResponseMessage msg) throws Exception {
+        log.info("接收到服务端的响应：{}", msg);
+        Promise promise = PROMISE_MAP.remove(msg.getSequenceId());
+        if (promise != null) {
+            Object returnValue = msg.getReturnValue();
+            Exception exceptionValue = msg.getExceptionValue();
+            if (exceptionValue != null) {
+                promise.setFailure(exceptionValue);
+            } else {
+                promise.setSuccess(returnValue);
+           }
+        } else {
+            throw new RuntimeException("无法找到对应的promise对象");
+        }
+    }
+}
+```
+
+# 6. 源码剖析
+
+## 1. 启动剖析
+
+> Netty和原生NIO的区别，在原生的NIO主要干的事情有下边四件事情
+>
+> ```java
+> // 创建选择器
+> Selector selector = Selector.open:
+> // 创建通道
+> ServerSocketChannel ssc =ServerSocketChannel.open();
+> // 绑定netty实现的NioServerSocketChannel
+> SelectionKey selectionKey= ssc.register(selector, 0, nettySsc);
+> // 关注事件
+> selectionKey.interestOps(SelectionKey.OP ACCEPT);
+> ```
+
+```java
+//1 netty 中使用 NioEventLoopGroup(简称nio boss 线程)来封装线程和 selector
+Selector selector =selector.open;
+
+//2 创建 Nioserversocketchanne1，同时会初始化它关联的 handler，以及为原生 ssc 存储 config
+NioServerSocketchannel attachment = new NioserverSocketchannel();
+
+//3 创建 Nioserversocketchanne] 时,创建了 java 原生的 Serversocketchannel
+ServerSocketchannel serverSocketchannel=ServerSocketchannel.open():
+serverSocketChannel.configureBlocking(false);
+//4 启动 nio boss 线程执行接下来的操作
+
+//5 注册(仅关联 selector 和 NioServersocketchanne1)，未关注事件
+SelectionKey selectionKey = serversocketchannel.register(selector, 0, attachment);
+
+//6 head ->初始化器 ->ServerBootstrapAcceptor -> tai1,初始化器是一次性的，只为添加 acceptor
+
+//7 绑定端口
+serverSocketchannel.bind(new InetSocketAddress(8080));
+
+//8 触发 channel active 事件，在 head 中关注 op_accept 事件
+selectionKey.interestops(SelectionKey.OP_ACCEPT);
+```
+
+1.   init (main)
+
+    - 创建NioServerSocketChannel （main）
+
+    - 添加NioServerSockerChannel，初始化Handler (main)
+         - 初始化Handler等待调用
+
+2. register
+
+   - 启动 nio boss线程 （main）
+   - 原生SSC注册到selector 未关注实践 (nio-thread)
+   - 执行 NioServerSocketChannel 初始化Handler (nio-thread)
+
+3. regFuture等待回调 doBind0 (main)
+
+    - 原生ServerSocketChannel绑定 (nio-thread)
+    - 触发 NioServerSocketChannel active事件 (nio-thread)
+
+### 1. init
+
+> 源码位置 `io.netty.bootstrap.AbstractBootstrap#initAndRegister`，
+>
+> 1. 通过NioServerSocketChannel的构造方法创建出来原生SSC。
+>
+> 2. 在ServerBootstrap的init方法通过addLast把ChnnaelInitializer添加到流水线
+> 3. 
+
+### 2. register
+
+> 源码位置 `io.netty.bootstrap.AbstractBootstrap#initAndRegister`，**<font color=red>主要用来切换线程，由主线程切换到eventLoop线程</font>**
+>
+> 1. 通过`ChannelFuture regFuture = config().group().register(channel);`最终定位到`io.netty.channel.AbstractChannel.AbstractUnsafe#register`
+> 2. 通过`eventLoop.inEventLoop()`判断如果当前线程不在eventLoop中则切换线程使用eventLoop提交
+> 3. 通过`io.netty.channel.nio.AbstractNioChannel#doRegister`注册到原生的Channel中
+> 4. 通过`pipeline.invokeHandlerAddedIfNeeded();`调用`ServerBootstrap`的`addLast`添加了 acceptor handdler，在accept事件发生后建立链接
+
+### 3. dobind和accept
+
+> 1. `io.netty.channel.socket.nio.NioServerSocketChannel#doBind`绑定端口
+>
+> 2. `pipeline.fireChannelActive()`最终追踪到`io.netty.channel.nio.AbstractNioChannel#doBeginRead`.通过HeadContext channelActive经过一系列操作通过下列代码关注accept事件
+>
+>    ```java
+>     selectionKey.interestOps(interestOps | readInterestOp);
+>    ```
+>
+> 至此服务器就启动起来了。
+
+## 2. NioEventLoop
+
+> NioEventLoop的重要组成：Selector,线程，任务队列
+>
+> <font color=red>NioEventLoop机会处理io事件，也会处理普通任务和定时任务</font>
+>
+> 主要关注以下问题
+>
+> 1. selector何时创建
+>    - selector为何有两个selector成员
+> 2. nio线程何时启动
+> 3. 提交普通任务会不会结束selector阻塞
+>    - wackup方法和作用
+> 4. 每次循环，什么时候进入SelectStrategy.SELECT分支
+>    - 何时会进入select阻塞，阻塞多久
+> 5. nio空轮询bug在哪里提现，如何解决
+> 6. ioRatio控制什么，设为100的意义
+> 7. selectedKeys优化
+> 8. 怎么区分不同的事件类型
+
+### 1. selector何时创建
+
+> NioEventLoop中有两个selector分别是 `selector`, `unwrappedSelector`
+>
+> 线程和任务队列则是在父类`SingleThreadEventExecutor`中，有`thread`和`taskQueue`,其中`executor`是个执行器，和thread是一个线程
+>
+> 再上一层的父类`AbstractScheduledEventExecutor`中的`scheduledTaskQueue`用来执行定时任务。
+
+
+
+**何时创建Selector？**
+
+`NioEventLoop`的构造方法中调用了`openSelector`方法给`selector`赋值
+
+**为什么有两个Selector?**
+
+上一步实际上赋值给了`unwrappedSelector`，但是原始的Selector底层用set遍历selectedKey性能不好，所以netty自己包装了一个用数组实现的。
+
+<font color=red>为了遍历SelectedKey时提高性能，所以维护了两套selector</font>
+
+### 2. nio线程何时启动
+
+> 当首次调用`execute`方法时启动nio线程，通过状态位控制线程只会启动一次。具体逻辑`io.netty.util.concurrent.SingleThreadEventExecutor#startThread`
+
+### 3. 提交普通任务会不会结束selector阻塞
+
+> 会，而且会用wakeUp唤醒nio线程。
+>
+> nextWakeupNanos通过CAS防止频繁调用wakeUp
+
+```java
+protected void wakeup(boolean inEventLoop) {
+    // 只有其他线程调用线程，才会调用nio的线程，
+    if (!inEventLoop && nextWakeupNanos.getAndSet(AWAKE) != AWAKE) {
+        selector.wakeup();
+    }
+}
+```
+
+### 4. 什么时候会进入SELECT分支
+
+> 源码中通过判断 `selectStrategy.calculateStrategy(selectNowSupplier, hasTasks())` 返回 -1 才进入.
+
+```java
+final class DefaultSelectStrategy implements SelectStrategy {
+    static final SelectStrategy INSTANCE = new DefaultSelectStrategy();
+
+    private DefaultSelectStrategy() { }
+
+    @Override
+    public int calculateStrategy(IntSupplier selectSupplier, boolean hasTasks) throws Exception {
+        return hasTasks ? selectSupplier.get() : SelectStrategy.SELECT;
+    }
+}
+```
+
+**何时进入SELECT分支**
+
+如果没有任务则会进入到SELECT分支。
+
+有任务调用selectNow方法，拿到io事件
+
+**阻塞多长时间**
+
+selectDeadLineNanos = 当前时间 + 1s 
+
+timeoutMills = 1s + 0.995 ms
+
+### 5. Nio空轮询提现和解决办法
+
+> 每次循环都会让selectCnt++。
+>
+> 在`unexpectedSelectorWakeup(selectCnt)`方法中，判断如果大于某个特定的值`SELECTOR_AUTO_REBUILD_THRESHOLD`则结束死循环
+>
+> 该值由环境变量和默认值决定
+>
+> ````java
+> SystemPropertyUtil.getInt("io.netty.selectorAutoRebuildThreshold", 512)
+> ````
+>
+> 然后使用`rebuildSelector()`将旧的selector替换成新的selector.
+>
+> 这是JDK在Linux下的BUG，netty把Selector重写了。
+
+```java
+@Override
+protected void run() {
+    int selectCnt = 0;
+    for (;;) {
+
+    }
+   selectCnt++;
+}
+```
+
+```java
+private boolean unexpectedSelectorWakeup(int selectCnt) {
+    // 这里判断了 是否 >= SELECTOR_AUTO_REBUILD_THRESHOLD
+    if (SELECTOR_AUTO_REBUILD_THRESHOLD > 0 &&
+            selectCnt >= SELECTOR_AUTO_REBUILD_THRESHOLD) {
+        rebuildSelector();
+        return true;
+    }
+    return false;
+}
+```
+
+```java
+SystemPropertyUtil.getInt("io.netty.selectorAutoRebuildThreshold", 512)
+```
+
+### 6. ioRatio控制什么，设为100的意义
+
+> 该参数用来控制IO事件占用的时间比例，默认50%。
+>
+> ioTime代表执行IO事件耗时。
+>
+> 通过源码可以得知ioRatio设置成100反而需要将所有的普通任务执行完才会走IO操作
+
+```java
+if (ioRatio == 100) {
+    try {
+        if (strategy > 0) {
+            processSelectedKeys();
+        }
+    } finally {
+        // Ensure we always run tasks.
+        ranTasks = runAllTasks();
+    }
+}
+```
+
+### 7. selectedKey优化
+
+> 内部使用数组替换原生的set
+
+```java
+private void processSelectedKeys() {
+    if (selectedKeys != null) {
+        // 优化后的代码
+        processSelectedKeysOptimized();
+    } else {
+        processSelectedKeysPlain(selector.selectedKeys());
+    }
+}
+```
+
+### 8. 怎么区分事件
+
+> `processSelectedKey`方法里
+
+## 3. Accept流程
+
+> **accept 流程**
+>
+> 1. `selector.select()` 阻塞直到事件发生
+> 2. 遍历处理selectedKeys
+> 3. 拿到key，判断事件类型是否是accept
+> 4. 创建SocketChannel，设置非阻塞
+> 5. 注册SocketChannel到Selector
+> 6. 关注SelectionKey的read事件
+>
+> **read流程**
+>
+> 1. selector.select阻塞直到事件发生
+> 2. 遍历处理selectedKeys
+> 3. 拿到key，判断是否是read事件
+> 4. 执行读取操作。
+
+### 1. accept
+
+在第四步的时候创还能了NioSocketChannel
+
+第五步使用sc.registre(eventLoop的选择器, 0, NioSocketChannel),调用NioSocketChannel的触发器
+
+然后触发channel的active事件，再启动流程里边有详细的查找流程。
+
+看蒙了，[留个链接吧](https://www.bilibili.com/video/BV1py4y1E7oA?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&spm_id_from=333.788.player.switch&p=156)
+
+### 2. read
+
