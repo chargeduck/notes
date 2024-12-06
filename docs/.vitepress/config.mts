@@ -45,6 +45,10 @@ export default withMermaid({
                 text: '服务器',
                 items: [
                     {
+                      text: 'Docker教程',
+                      link: '/server/docker'
+                    },
+                    {
                         text: 'Docker',
                         link: '/server/dockerInit'
                     },
