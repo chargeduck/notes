@@ -47,6 +47,20 @@ sudo systemctl restart docker
 # 远程
 vim /usr/lib/systemd/system/docker.service
 ```
+**Ubuntu系统设置**
+```shell
+#更新apt库
+apt update
+sudo apt install -y curl
+# 设置阿里云源
+curl -fsSL http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
+# 添加docker软件源
+sudo add-apt-repository "deb [arch=amd64] http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable"
+# 安装
+apt-get install docker-ce docker-ce-cli containerd.io
+# 后边的开启自启啥的都一样了
+
+```
 
 **错误解决**
 
@@ -528,4 +542,4 @@ networks:
 ```shell
 docker compose up -d
 ```
-
+[编写shell命令，实现一键更新代码和部署](/server/dockerInit.html)
