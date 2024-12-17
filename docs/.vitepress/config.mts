@@ -55,6 +55,18 @@ export default withMermaid({
                     {
                         text: 'CentOs',
                         link: '/server/centosInit'
+                    },
+                    {
+                        text: 'K8s',
+                        link: '/server/k8s'
+                    },
+                    {
+                        text: 'jenkins',
+                        link: '/server/jenkins'
+                    },
+                    {
+                        text: 'Gitlab安装',
+                        link: '/server/gitlab'
                     }
                 ]
             },
