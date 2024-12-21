@@ -21,6 +21,23 @@ export default withMermaid({
             {text: 'Home', link: '/'},
             {text: 'Examples', link: '/markdown-examples'},
             {
+                text: '编程语言',
+                items: [
+                    {
+                        text: 'Php',
+                        link: '/language/php/index'
+                    },
+                    {
+                        text: 'Python',
+                        link: '/language/python/index'
+                    },
+                    {
+                        text: 'golang',
+                        link: '/language/golang/index'
+                    }
+                ]
+            },
+            {
                 text: '后端',
                 items: [
                     {
