@@ -31,7 +31,6 @@ php think make:controller admin@Login --plain
 ```shell
 localhost/index.php/admin/index/index
 ```
-
 # 2. ThinkPhp
 ## 2.1 一些配置
 1. Apache入口重写 把以下内容放到`tp/public/.htaccess`中
@@ -123,3 +122,131 @@ input('post.name');
 > ```shell
 > composer require topthink/think-view
 >```
+> 使用 `view()`返回视图对象，默认是`view/index/index.html`,感觉和 `thymeleaf` 差不多,
+> 想用其他页面的划，就使用`view('{htmlName}')`方法,替换成对应的html页面名字就行
+```php
+class Index {
+    public function index() {
+        return view();
+    }
+}
+```
+> 如果需要往视图层传递数据的划，需要在模板名称后便加上一个数组，数组的键名就是需要传递的变量名
+```php
+return view('index',[
+    'name' => '张三',
+    'age' => 18
+]);
+```
+```html
+<h1>您好，{$name}，今年{$age}岁了</h1>
+```
+## 2.5 json() 函数
+> 返回json数据, 有一点些微的不一样，方法里传入的是一个数据
+```php
+class Index {
+    public function index() {
+        return json([
+            'code' => 200,
+            'msg' => 'success',
+            'data' => [
+                'name' => '张三',
+                'age' => 18
+            ]
+        ]);
+    }
+}
+```
+## 2.6 连接数据库
+1. 修改配置文件 `tp/.env` 文件
+2. 使用数据库
+```php
+ use DateTime;
+use think\facade\Db;
+
+class Index {
+    public function index() {
+
+        $dataArr = [
+            "nickname" => "admin",
+            "password" => md5("123456"),
+            "info" => "123456",
+            "last_login_ip" => request()->ip(),
+            "admin_flag" => 0,
+            "status" => 1,
+            "create_by" => "admin",
+            "update_by" => "admin",
+            "create_time" => new DateTime(),
+            "update_time" => new DateTime(),
+            "del_flag" => 0,
+        ];
+        $insert = Db::table('tb_user')->insertGetId($dataArr);
+        $result = [
+            "data" => $dataArr,
+            "effect" => $insert,
+            "msg" => "成功",
+            "code" => 200,
+        ];
+        return json($result);
+    }
+}
+```
+## 2.7 验证码
+> tp的验证码是使用`captcha`扩展来实现的，需要安装扩展
+> ```shell
+> composer require topthink/think-captcha
+> ```
+```php
+use think\captcha\facade\Captcha;
+class Index {
+    public function index() {
+        return Captcha::create();
+    }
+}
+```
+> 在`tp/config/captcha.php`配置文件中可以修改验证码的样式, 自定义配置修改最后的 verify 配置即可
+```php
+return [
+    // 添加额外的验证码设置
+    "verify" => [
+         'length'=>4,
+    ],
+]
+```
+> 还有一个最最最关键的一步，需要在`app/middleware/php`开启session存储，不然永远返回false.
+```php
+return [
+    // Session初始化
+     \think\middleware\SessionInit::class
+];
+```
+> 这里可以自己创建一个Result返回类
+```php
+class Result {
+    public function __construct( public int $code, public string $message, public mixed $data) {
+    }
+
+    public static function success(string $message, mixed $data): Result {
+        return new Result(200,$message,$data);
+    }
+
+    public static function quickSuccess( mixed $data): Result {
+        return self::success('success', $data);
+    }
+
+    public static function error(string $message, mixed $data): Result {
+        return new Result(500,$message,$data);
+    }
+
+    public static function quickError( mixed $data): Result {
+        return self::error('error', $data);
+    }
+
+}
+```
+```php
+public function checkCaptcha(): Json {
+    return json(Result::quickSuccess(Captcha::check(input('post.captcha'))));
+}
+```
+

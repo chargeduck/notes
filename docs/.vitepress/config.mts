@@ -13,7 +13,7 @@ export default withMermaid({
         // 配置参考： https://mermaid.js.org/config/setup/modules/mermaidAPI.html#mermaidapi-configuration-defaults
     },
     mermaidPlugin: {
-      class: 'mermaid my-class'
+        class: 'mermaid my-class'
     },
     themeConfig: {
         // https://vitepress.dev/reference/default-theme-config
@@ -23,6 +23,10 @@ export default withMermaid({
             {
                 text: '编程语言',
                 items: [
+                    {
+                        text: '汇总',
+                        link: '/language/index'
+                    },
                     {
                         text: 'Php',
                         link: '/language/php/index'
@@ -34,6 +38,14 @@ export default withMermaid({
                     {
                         text: 'golang',
                         link: '/language/golang/index'
+                    },
+                    {
+                        text: 'Java',
+                        link: '/language/java/index'
+                    },
+                    {
+                        text: 'Vue',
+                        link: '/language/vue/vue3'
                     }
                 ]
             },
@@ -62,8 +74,8 @@ export default withMermaid({
                 text: '服务器',
                 items: [
                     {
-                      text: 'Docker教程',
-                      link: '/server/docker'
+                        text: 'Docker教程',
+                        link: '/server/docker'
                     },
                     {
                         text: 'Docker',
@@ -114,6 +126,10 @@ export default withMermaid({
                     {
                         text: 'MockJs',
                         link: '/frontend/utils/mockjs'
+                    },
+                    {
+                        text: 'Electron仿QQ音乐',
+                        link: '/frontend/electron/index'
                     }
                 ]
             }
@@ -130,6 +146,7 @@ export default withMermaid({
             },
             {
                 text: '消息中间件',
+                collapsed: true,
                 items: [
                     {
                         text: 'ActiveMq尚硅谷版',
@@ -170,6 +187,7 @@ export default withMermaid({
             },
             {
                 text: '审批流',
+                collapsed: true,
                 items: [
                     {
                         text: 'Flowable审批流',
@@ -209,7 +227,7 @@ export default withMermaid({
             },
             {
                 text: '数据库',
-                collapsable: true,
+                collapsed: true,
                 items: [
                     {
                         text: 'ElasticSearch',
@@ -228,6 +246,56 @@ export default withMermaid({
                     {
                         text: '动态表格',
                         link: '/frontend/utils/dynamicTable'
+                    }
+                ]
+            },
+            {
+                text: '编程语言',
+                collapsed: true,
+                link: '/language/index',
+                items: [
+                    {
+                        text: 'Php',
+                        link: '/language/php/index'
+                    },
+                    {
+                        text: 'Python',
+                        link: '/language/python/index'
+                    },
+                    {
+                        text: 'golang',
+                        link: '/language/golang/index'
+                    },
+                    {
+                        text: 'Java',
+                        link: '/language/java/index',
+                        items: [
+                            {
+                                text: 'Java9新特性',
+                                link: '/language/java/java9'
+                            },
+                            {
+                                text: 'Java10新特性',
+                                link: '/language/java/java10'
+                            },
+                            {
+                                text: 'Java11新特性',
+                                link: '/language/java/java11'
+                            }
+                        ]
+                    },
+                    {
+                        text: 'vue',
+                        items: [
+                            {
+                                text: 'vue3',
+                                link: '/language/vue/vue3'
+                            },
+                            {
+                                text: 'vue2',
+                                link: '/language/vue/vue2'
+                            }
+                        ]
                     }
                 ]
             }
