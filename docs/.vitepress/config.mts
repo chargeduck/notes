@@ -45,7 +45,7 @@ export default withMermaid({
                     },
                     {
                         text: 'Vue',
-                        link: '/language/vue/vue3'
+                        link: '/language/vue/vue3/index'
                     }
                 ]
             },
@@ -289,11 +289,25 @@ export default withMermaid({
                         items: [
                             {
                                 text: 'vue3',
-                                link: '/language/vue/vue3'
+                                link: '/language/vue/vue3/index'
                             },
                             {
                                 text: 'vue2',
-                                link: '/language/vue/vue2'
+                                link: '/language/vue//vue2/index',
+                                items: [
+                                    {
+                                      text: '基础语法',
+                                      link: '/language/vue/vue2/index'
+                                    },
+                                    {
+                                        text: 'vuex',
+                                        link: '/language/vue/vue2/vuex'
+                                    },
+                                    {
+                                        text: 'vant购物车',
+                                        link: '/language/vue/vue2/vant'
+                                    }
+                                ]
                             }
                         ]
                     }

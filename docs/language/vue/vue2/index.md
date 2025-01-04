@@ -144,8 +144,69 @@ cd vue-project
 yarn serve 
 
 ```
+## 2. 使用VueCli自定义创建项目脚手架
+```shell
+# 使用vue脚手架创建
+vue create customer-project
+# 选择第三个
+Manually select features
+# 选择一些常用的组件行了
+Babel, Router, Vuex, CSS Pre-processors, Linter / Formatter, 
+# 规范可以用第三个
+ESLint + Standard config
+```
 
-# 3. .sync修饰符
+# 3. 关键字和语法糖
+
+## 1. v-model
+
+> v-model本质上是一个语法糖，它可以简化表单输入的绑定。它可以自动根据表单元素的类型来选择正确的绑定方式。
+>
+> 在输入框上就相当于<font color=red>是`:value`和`@input`的简写。</font>
+> ，在父子组件传值时，子组件无法直接修改父组件的数据，需要使用`v-model`来实现。
+
+- 父组件
+
+```vue
+
+<template>
+  <my-tag v-model="tagTxt"></my-tag>
+</template>
+<script>
+  export default {
+    data() {
+      return {
+        tagTxt: ""
+      }
+    }
+  }
+</script>
+```
+
+- 子组件
+
+```vue
+
+<template>
+  <div>
+    <input :value="value" @input="handleInput">
+  </div>
+</template>
+<script>
+  export default {
+    props: {
+      value: String
+    },
+    methods: {
+      handleInput(event) {
+        this.$emit('input', event.target.value);
+      }
+    }
+  }
+</script>
+```
+
+## 2. sync修饰符
 
 > 用来实现父子组件的通信， 可以实现子组件和父组件的双向数据绑定。本质上是`:属性名`和`@update:属性名`的合写
 > <font color=red>适用于弹窗类的基础组件， visible 属性的显示隐藏</font>
@@ -155,7 +216,7 @@ yarn serve
 ```vue
 
 <BaseDialog :visible.sync="showFlag"/>
-
+<!--原版写法-->
 <BaseDialog :visible="showFlag" @update:visible="showFlag = $event"/>
 ```
 
@@ -257,7 +318,7 @@ Vue.directive('color', {
 </script>
 ```
 
-## 3. 实现一个v-loading指令，实现一个loading效果
+## 3. v-loading实现loading效果
 
 - css
 
@@ -623,4 +684,443 @@ Vue.directive('loading', {
     }
   }
 </script>
+```
+
+# 6. VueRouter
+
+> 版本对应关系
+
+| Vue  |  VueRouter   |  Vuex   |
+|:----:|:------------:|:-------:|
+| Vue2 | VueRouter3.x | Vuex3.x |
+| Vue3 | VueRouter4.x | Vuex4.x |
+
+## 1. SPA简介
+
+> Single Page Application 单页面应用程序, 整个应用只有一个完整的页面, 所有的内容都在一个页面中显示, 页面之间的跳转是通过JS来实现的,
+> 不需要重新加载页面。
+
+|  区分  |                单页面                 |               多页面               |
+|:----:|:----------------------------------:|:-------------------------------:|
+| 实现方式 |              一个html页面              |            多个html页面             |
+| 页面性能 | <font color=green>按需更新，性能较高</font> | <font color=red>整页更新，性能低</font> |
+| 开发效率 |     <font color=green>高</font>     |               适中                |
+| 用户体验 |     <font color=green>好</font>     |               一般                |
+| 学习成本 |      <font color=red>高</font>      |               适中                |
+| 首屏加载 |      <font color=red>慢</font>      |   <font color=green>快</font>    |
+| SEO  |      <font color=red>差</font>      |   <font color=green>优</font>    |
+| 应用场景 |         系统类网站/内部网站/文档/移动站点         |         企业网站/电商网站/门户网站          |
+
+## 2 安装VueRouter和使用
+
+### 1. 安装VueRouter
+
+1. 安装依赖
+
+```shell
+npm i vue-router@3.6.5
+```
+
+2. 在`main.js`引入
+
+```js
+import VueRouter from 'vue-router'
+```
+
+3. 全局注册
+
+```js
+Vue.use(VueRouter)
+```
+
+4. 创建路由实例
+
+```js
+const router = new VueRouter()
+```
+
+5. 关联Vue实例
+
+```js
+new Vue({
+  render: h => h(App),
+  router
+}).$mount('#app')
+```
+
+### 2. 使用步骤
+
+1. 创建页面组件，配置路由规则
+
+```js
+import Find from '@/views/Find.vue'
+import My from '@/views/My.vue'
+import Friend from '@/views/Friend.vue'
+
+const router = new VueRouter({
+  routes: [
+    {path: '/find', component: Find},
+    {path: '/my', component: My},
+    {path: '/friend', component: Friend}
+  ]
+})
+```
+
+也可以简写成下边的内容
+
+```js
+const router = new VueRouter({
+  routes: [
+    {path: '/my', component: () => import('./views/my.vue')},
+    {path: '/friend', component: () => import('./views/friend.vue')},
+    {path: '/find', component: () => import('./views/find.vue')},
+  ]
+})
+```
+
+2. 配置导航，配置路由出口
+
+```html
+
+<div class="footer_wrap">
+  <!-- 配置导航 后边可以用 router-link 替换 -->
+  <a href="#/find">发现音乐</a>
+  <a href="#/my">我的音乐</a>
+  <a href="#/friend">朋友</a>
+</div>
+<div class="top">
+  <!-- 路由页面会加载到这里 -->
+  <router-view/>
+</div>
+```
+
+## 3 路由封装抽离
+
+> 将路由抽离到一个单独的文件中，方便管理
+
+- `src/router/index.js`
+
+```js
+import VueRouter from "vue-router";
+
+const router = new VueRouter({
+  routes: [
+    {path: '/my', component: () => import('@/views/My.vue')},
+    {path: '/friend', component: () => import('@/views/Friend.vue')},
+    {path: '/find', component: () => import('@/views/Find.vue')},
+  ]
+})
+export default router;
+```
+
+- main.js
+
+```js
+// 引入路由替换掉原来的
+import router from '@/router'
+```
+
+## 4 router-link
+
+> 切换到对应的路由之后，router-link 会自动添加高亮效果，添加了两个高亮的类名 `router-link-active`
+> 和 `router-link-exact-active`。
+> 具体的css还是要自己写，具体匹配的规则如下
+
+|            类名            |  描述  |    路由    |             匹配              |
+|:------------------------:|:----:|:--------:|:---------------------------:|
+|    router-link-active    | 模糊匹配 | to="/my" | `/my` `/my/like` 以`/my`开头就行 |
+| router-link-exact-active | 精确匹配 | to="/my" |            `/my`            |
+
+```html
+
+<div>
+  <router-link to="/find">发现音乐</router-link>
+  <router-link to="/my">我的音乐</router-link>
+  <router-link to="/friend">朋友</router-link>
+</div>
+<style>
+  .router-link-active {
+    color: red;
+  }
+</style>
+```
+
+> 如果觉得这两个自带的类名太长了，可以在创建VueRouter实例的时候添加配置项
+
+```js
+const router = new VueRouter({
+  linkActiveClass: 'active',
+  linkExactActiveClass: 'exact-active',
+  routes: []
+})
+```
+
+```css
+.active {
+    color: red;
+}
+```
+
+## 5. 跳转传参
+
+### 1. 查询参数传参
+
+1. 直接写在路由参数中
+
+```html
+
+<router-link to="/my?id=1">我的音乐</router-link>
+```
+
+2. 获取参数
+
+```js
+const id = this.$route.query.id
+```
+
+### 2. 动态路由传参
+
+1. 配置动态路由
+
+```js
+const router = new VueRouter({
+  routes: [
+    {path: '/search/:keywords', component: () => import('@/views/Serach.vue')},
+  ]
+})
+```
+
+2. 使用
+
+```html
+
+<router-link to="/search/如何日入十万">如何日入十万？</router-link>
+```
+
+3. 获取参数
+
+```js
+const keywords = this.$route.params.keywords
+```
+
+> 当前存在一个问题，如果不传参数的话，页面会展示空白页，所以需要配置后边的动态参数为可选的。
+> 只需要在最后加一个 `?`即可,应该就是正则匹配的，?代表0或1个
+
+```js
+{
+  path: '/search/:keywords?', component
+:
+  () => import('@/views/Serach.vue')
+}
+,
+```
+
+## 6. 路由重定向和404
+
+### 1. 路由重定向
+
+> 网页初次打开的时候， url是默认的/ 未匹配到任何组件，会出现空白，所以需要重定向到某个页面
+
+```js
+const router = new VueRouter({
+  routes: [
+    {path: '/', redirect: '/home'},
+  ]
+})
+```
+
+### 2. 404页面
+
+> 当访问的路由不存在的时候，会出现404页面，需要配置404页面, <font color=red>需要配置在路由的最后，用通配符“*”命中</font>
+
+```js
+const router = new VueRouter({
+  routes: [
+    {path: '/', redirect: '/home'},
+    {path: '/friend', component: () => import('@/views/Friend.vue')},
+    {path: '*', component: () => import('@/views/404.vue')}
+  ]
+})
+```
+
+## 7. 路由模式
+
+> 路由模式有两种，一种是hash模式(路径带#)，一种是history模式。
+
+|    模式     |            示例            |
+|:---------:|:------------------------:|
+|  hash路由   | https://localhost/#/home |
+| history路由 |  https://localhost/home  |
+
+> 当然也可以通过vite.config.js来设置路由模式
+
+```js
+const router = new VueRouter({
+  // 设置路由模式
+  mode: 'history',
+  routes: []
+})
+```
+
+## 8.路由跳转
+
+### 1. path路由跳转
+
+```js
+this.$router.push('/my');
+this.$router.push({path: '/my'});
+```
+
+### 2. name路由跳转
+
+> 适用于path有点长的时候，用name简单点
+
+```js
+const router = new VueRouter({
+  routes: [
+    {path: '/my', name: 'my', component: () => import('@/views/My.vue')},
+  ]
+})
+```
+
+```js
+this.$router.push({name: 'my'});
+```
+
+### 3. 路由跳转传参
+
+> 两种方式好像对query和params都支持，但是我懒得写了，就这样吧
+
+1. path跳转使用query传参
+
+```js
+this.$router.push({
+  path: '/my',
+  query: {
+    id: 1
+  }
+});
+```
+
+2. name跳转使用params传参
+
+```js
+this.$router.push({
+  name: 'my',
+  params: {
+    id: 1
+  }
+})
+```
+
+3. name 动态路由传参有些不同
+
+```javascript
+const router = new VueRouter({
+  routes: [
+    {path: '/my/:id', name: 'my', component: () => import('@/views/My.vue')},
+  ]
+})
+```
+
+```js
+this.$router.push({
+  name: 'my',
+  params: {
+    // 这里需要跟路由配置的参数一致
+    id: 1
+  }
+})
+```
+
+## 9. 二级路由
+
+> 配置多级路由的时候使用children填入数组即可。<br/>
+> 不过需要注意的事，Layout.vue需要配置一个路由出口，也就是需要一个`<router-view />`标签
+
+```js
+import VueRouter from "vue-router"
+import Layout from "@/views/Layout.vue";
+
+const router = new VueRouter({
+  routes: [
+    {
+      path: '/',
+      component: Layout,
+      children: [
+        {
+          path: '/article',
+          component: () => import('@/views/Article.vue'),
+        },
+        {
+          path: '/collect',
+          component: () => import('@/views/Collect.vue'),
+        },
+        {
+          path: '/like',
+          component: () => import('@/views/Like.vue'),
+        },
+        {
+          path: '/user',
+          component: () => import('@/views/User.vue'),
+        }
+      ]
+    },
+    {
+      path: '/detail',
+      component: () => import('@/views/ArticleDetail.vue'),
+    }
+  ]
+})
+export default router;
+
+```
+
+2. Layout.vue
+
+```vue
+<template>
+  <div class="h5-wrapper">
+    <div class="content">
+      <router-view />
+    </div>
+  </div>
+</template>
+```
+## 10. 组件缓存 keep-alive
+> keep-alive是一个内置组件，用于缓存组件的状态，避免组件的重复渲染。用它包裹动态组件时，
+> 会缓存不活动的组件实例，而不是销毁它们。
+> 
+> 该组件是一个抽象组件：它自身不会渲染一个 DOM 元素，也不会出现在父组件链中。
+> 
+> **在组件切换过程中，把切换出去的组件保存在内存中，防止重复渲染DOM，减少加载时间及性能消耗，提高用户体验**
+
+```vue
+<template>
+  <div class="content-wrapper">
+    <keep-alive>
+      <router-view />
+    </keep-alive>
+  </div>
+</template>
+```
+> keep-alive有三个属性，分别是include、exclude、max,<br/>
+> 被缓存的组件会多两个生命周期函数 activated 和 deactivated, 一旦组件被缓存了，就不会触发 created mounted destroyed 等生命周期函数，
+>
+> activated在组件被激活的时候触发，deactivated在组件失活的时候（也就是缓存之后跳转到其他页面时）触发。
+
+|属性| 描述                  |
+|--|---------------------|
+|include| 需要缓存的组件名称数组，以逗号分隔   |
+|exclude| 不需要缓存的组件名称数组，以逗号分隔  |
+|max| 缓存的组件数量，超过数量的组件会被销毁 |
+```vue
+<template>
+  <!--这里用的是组件名， 也就是组件里边的name属性，如果没有配置才会找文件名-->
+  <div class="content-wrapper" >
+    <keep-alive :include="['LayoutPage']">
+      <router-view />
+    </keep-alive>
+  </div>
+</template>
 ```
