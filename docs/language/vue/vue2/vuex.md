@@ -1,5 +1,6 @@
 :::tip
 状态管理模式，集中式存储管理应用的所有组件的状态，并以相应的规则保证状态以一种可预测的方式发生变化。
+持久化可以使用localStorage或者插件[vuex-persistedstate](https://github.com/robinvdvleuten/vuex-persistedstate?tab=readme-ov-file)
 
 Vue3 中使用 [Pinia](/language/vue/vue3/pinia.html) 作为状态管理工具。
 :::
