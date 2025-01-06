@@ -289,15 +289,25 @@ export default withMermaid({
                         items: [
                             {
                                 text: 'vue3',
-                                link: '/language/vue/vue3/index'
+                                link: '/language/vue/vue3/index',
+                                items: [
+                                    {
+                                        text: '基础语法',
+                                        link: '/language/vue/vue3/index'
+                                    },
+                                    {
+                                        text: 'pinia',
+                                        link: '/language/vue/vue3/pinia'
+                                    }
+                                ]
                             },
                             {
                                 text: 'vue2',
                                 link: '/language/vue//vue2/index',
                                 items: [
                                     {
-                                      text: '基础语法',
-                                      link: '/language/vue/vue2/index'
+                                        text: '基础语法',
+                                        link: '/language/vue/vue2/index'
                                     },
                                     {
                                         text: 'vuex',

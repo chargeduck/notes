@@ -280,4 +280,89 @@ router.beforeEach((to, from, next) => {
   }
 })
 ```
-[当前进度](https://www.bilibili.com/video/BV1HV4y1a7n4?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=122)
+# 8. mixins混入
+> 就是把一些公共的代码抽取出来，然后在需要的组件中引入，把未登录操作拦截放置到mixins中
+
+- 创建`mixins/loginConfirm.js`
+```js
+export default {
+  // 此处编写的就是 Vue组件实例的 配置项，通过一定语法，可以直接混入到组件内部
+  // data methods computed 生命周期函数 ...
+  // 注意点：
+  // 1. 如果此处 和 组件内，提供了同名的 data 或 methods， 则组件内优先级更高
+  // 2. 如果编写了生命周期函数，则mixins中的生命周期函数 和 页面的生命周期函数，
+  //    会用数组管理，统一执行
+  created () {
+    // console.log('嘎嘎')
+  },
+  data () {
+    return {
+      title: '标题'
+    }
+  },
+  methods: {
+    sayHi () {
+      // console.log('你好')
+    },
+
+    // 根据登录状态，判断是否需要显示登录确认框
+    // 1. 如果未登录 => 显示确认框 返回 true
+    // 2. 如果已登录 => 啥也不干   返回 false
+    loginConfirm () {
+      // 判断 token 是否存在
+      if (!this.$store.getters.token) {
+        // 弹确认框
+        this.$dialog.confirm({
+          title: '温馨提示',
+          message: '此时需要先登录才能继续操作哦',
+          confirmButtonText: '去登陆',
+          cancelButtonText: '再逛逛'
+        })
+          .then(() => {
+            this.$router.replace({
+              path: '/login',
+              query: {
+                backUrl: this.$route.fullPath
+              }
+            })
+          })
+          .catch(() => {})
+        return true
+      }
+      return false
+    }
+  }
+}
+```
+- 使用
+```js
+import loginConfirm from '@/mixins/loginConfirm'
+export default {
+  // 混入之后其他地方既可以想调用本组件的方法一样了
+  mixins: [loginConfirm]
+}
+```
+
+# 9. 打包
+> 这个没啥说的吧，就是`npm run build`， 如果想要直接打开打包好的`dist/index.html`需要更改配置
+
+- vue.config.js
+```js
+const { defineConfig } = require('@vue/cli-service')
+module.exports = defineConfig({
+  publicPath: './',
+  transpileDependencies: true
+})
+```
+
+> 通过配置路由懒加载，可以减少打包后的文件大小，只有访问的时候才会加载对应的组件
+```js
+routes: [
+  {
+    path: '/home',
+    name: 'home',
+    // 路由懒加载
+    component: () => import('@/views/layout/home.vue')
+  }
+]
+```
