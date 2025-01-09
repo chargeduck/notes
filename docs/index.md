@@ -6,6 +6,9 @@ hero:
   name: "notes"
   text: "后端仔的学习笔记"
   tagline: My great project tagline
+  image:
+    src: https://lesscoding.net/assets/chargeduck_logo-NrV2fgIC.png
+    alt: Less Code More Fun
   actions:
     - theme: brand
       text: Markdown Examples

@@ -151,7 +151,33 @@ const msg = reactive({})
 </template>
 ```
 
-## 3. computed
+## 3. toRefs 和 toRef 函数
+### 1. toRefs
+> 如果直接对 reactive() 函数返回的响应式对象进行解构赋值时，会丢失响应式。需要使用toRefs函数来解决。
+```js
+const person = reactive({
+  name: '张三',
+  age: 18
+})
+// 这样会导致响应式丢失
+// const { name, age } = person
+const { name, age } = toRefs(person)
+function changeName () {
+  name.value = '李四'
+}
+```
+### 2. toRef
+> toRef函数可以将一个响应式对象的某个属性，返回一个响应式的ref对象。
+
+```js
+const person = reactive({
+  name: '张三',
+  age: 18
+})
+const name = toRef(person, 'name')
+```
+
+## 4. computed
 
 > 基本思想和Vue2中的computed一样，都是计算属性，但是在Vue3中，computed是一个函数，需要在setup中引入。
 >
@@ -175,7 +201,7 @@ const msg = reactive({})
 </template>
 ```
 
-## 4. watch
+## 5. watch
 
 > 监听一个或多个数据的变化，数据变化时，执行回调函数。
 >
@@ -271,7 +297,7 @@ watch(() => userinfo.value.name, (newVal, oldVal) => {
 })
 ```
 
-## 5. 生命周期函数
+## 6. 生命周期函数
 
 | 选项式API                                      | 组合式API                                 |
 |---------------------------------------------|----------------------------------------|
@@ -304,7 +330,7 @@ watch(() => userinfo.value.name, (newVal, oldVal) => {
 </script>
 ```
 
-## 6. 父子通信
+## 7. 父子通信
 
 ### 1 通过props父传子
 
@@ -375,7 +401,7 @@ watch(() => userinfo.value.name, (newVal, oldVal) => {
 </template>
 
 ```
-## 7. 模板引入和 defineExpose宏函数
+## 8. 模板引入和 defineExpose宏函数
 ### 1. 模板引入
 > 通过 ref 标识 获取真实的dom对象或者组件实例对象
 
@@ -410,7 +436,7 @@ watch(() => userinfo.value.name, (newVal, oldVal) => {
   })
 </script>
 ```
-## 8. provide和 inject
+## 9. provide和 inject
 > 顶层组件想任意的底层组件传递数据和方法，实现跨组件通信
 >
 > 顶层组件通过provide暴露数据和方法 底层组件通过inject接收数据和方法
@@ -464,6 +490,54 @@ watch(() => userinfo.value.name, (newVal, oldVal) => {
 </template>
 
 ```
+## 10 watchEffect
+> watchEffect和watch相比，不需要指定监听的属性，会自动推断出需要监听的属性。直接使用就行。
+> 
+> 例如下面这个例子，当 temp > 60 或者 height > 30 时发送请求的逻辑。
+
+```vue
+<script setup>
+defineOptions({
+  name: 'App'
+})
+import { ref, watch, watchEffect } from 'vue'
+
+const temp = ref(10)
+const height = ref(5)
+const changeTemp = () => {
+  temp.value += 10
+}
+const changeHeight = () => {
+  height.value += 5
+}
+
+watch([temp, height], (value) => {
+  console.log(value)
+  const [newTemp, newHeight ] = value
+  if (newTemp > 60 || newHeight > 30) {
+    console.log('水温过高, 或高度过高')
+  }
+}, {
+  immediate: true,
+  deep: true
+})
+watchEffect(() => {
+  if (temp.value > 60 || height.value > 30) {
+    console.log('水温过高', 'watchEffect')
+  }
+})
+</script>
+
+<template>
+  水温: {{ temp }}
+  <el-button @click="changeTemp">加10</el-button>
+  <br>
+  高度: {{ height }}
+  <el-button @click="changeHeight">加5</el-button>
+</template>
+```
+
+
 # 4. Vue 3.3新特性
 >有 `<script setup>`之前，如果要定义 props，emits 可以轻而易举地添加一个与 setup 平级的属性。 但是用了 `<script setup>`后，就没法这么干了 setup 属性已经没有了，自然无法添加与其平级的属性。
 > 
@@ -537,4 +611,97 @@ export default defineConfig({
 <template>
   <input type="text" :value="modelValue" @input="emit('update:modelValue', $event.target.value)"/>
 </template>
+```
+# 5. VueRouter
+> Vue3中使用VueRouter4,与之前[Vue2中的使用VueRouter](/language/vue/vue2/#_6-vuerouter)有略微的区别
+
+## 1. 创建路由对象
+> Vue3中使用声明式API之后，创建router对象的方式有所变化
+```js
+import {createRouter, createWebHistory} from 'vue-router'
+
+// createRouter 创建路由实例
+// 配置 history 模式  
+// 1.history模式:createWebHistory 地址栏不带 #
+// 2.hash模式: createWebHashHistory 地址栏带 #
+// vite 中的环境境变量 import.meta.env.BASE URL 默认 /
+// 具体配置需要再vite.config.ts中配置 base: '/'
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [],
+})
+
+export default router
+```
+
+## 2. 页面使用变更
+> 如果是在template标签中使用，还是和之前一样用 `$router.push`就行
+> 
+> 但是在script标签中使用，因为this的值为undefined,所以需要使用`useRouter``useRoute`这两个函数来获取`router`和`route`
+
+```vue
+<scripe setup>
+  import { useRouter, useRoute } from 'vue-router'
+  const router = useRouter()
+  const route = useRoute()
+  const gotoList = () => {
+    router.push('/list')
+  }
+</scripe>
+<template>
+  <button @click="$router.push('/home')"></button>
+  <button @click="gotoList"></button>
+</template>
+```
+
+# 6. 按需导入
+> 安装`unplugin-vue-components` `unplugin-auto-import`这两个插件以后就再也不用写 import xxx form '@/xxx/xxx.vue'了, 以ElementPlus为例
+1. 安装
+```shell
+pnpm add -D unplugin-vue-components unplugin-auto-import 
+pnpm add element-plus
+```
+2. 在vite.config.js引入
+```shell
+import { fileURLToPath, URL } from 'node:url'
+
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import vueDevTools from 'vite-plugin-vue-devtools'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+
+// https://vite.dev/config/
+export default defineConfig({
+  server: {
+    port: 5174
+  },
+  plugins: [
+    vue(),
+    vueDevTools(),
+    AutoImport({
+      resolvers: [ElementPlusResolver()],
+    }),
+    Components({
+      resolvers: [ElementPlusResolver()],
+    }),
+  ],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    },
+  },
+})
+
+```
+
+3. 如果用的是 ts 的话，建议在 `tsconfig.json` 中(也可能是`tsconfig.app.json`)添加以下配置
+```json
+{
+  "includes": [
+    "auto-imports.d.ts",
+    "components.d.ts"
+  ]
+}
 ```

@@ -6,9 +6,12 @@ export default withMermaid({
     base: '/notes/',
     title: "notes",
     description: "后端仔的学习笔记",
+    vite: {
+    },
     markdown: {
         lineNumbers: true,
     },
+
     mermaid: {
         // 配置参考： https://mermaid.js.org/config/setup/modules/mermaidAPI.html#mermaidapi-configuration-defaults
     },
@@ -222,6 +225,10 @@ export default withMermaid({
                     {
                         text: 'Cors跨域配置',
                         link: '/backend/utils/corsConfig'
+                    },
+                    {
+                        text: 'TreeUtil',
+                        link: '/backend/utils/treeUtil'
                     }
                 ]
             },
@@ -256,7 +263,17 @@ export default withMermaid({
                 items: [
                     {
                         text: 'Php',
-                        link: '/language/php/index'
+                        link: '/language/php/index',
+                        items: [
+                            {
+                                text: 'Php8新特性',
+                                link: '/language/php/php8'
+                            },
+                            {
+                                text: 'ThinkPhp6',
+                                link: '/language/php/thinkphp6'
+                            }
+                        ]
                     },
                     {
                         text: 'Python',
@@ -281,7 +298,15 @@ export default withMermaid({
                             {
                                 text: 'Java11新特性',
                                 link: '/language/java/java11'
-                            }
+                            },
+                            {
+                                text: 'Java17新特性',
+                                link: '/language/java/java17'
+                            },
+                            {
+                                text: 'Java21新特性',
+                                link: '/language/java/java21'
+                            },
                         ]
                     },
                     {

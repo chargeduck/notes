@@ -122,7 +122,7 @@ export const useChannelsStore = defineStore('channels', () => {
 
 > 如果直接对store进行结构，会丢失响应式，使用storeToRefs可以保持响应式,
 >
-> state 和 getters 都可以保持响应式，actions直接解构行了
+> state 和 getters 都可以使用storeToRefs保持响应式，actions直接解构行了
 >
 > 或者直接用store.xxx 来获取
 
