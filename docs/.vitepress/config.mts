@@ -229,6 +229,10 @@ export default withMermaid({
                     {
                         text: 'TreeUtil',
                         link: '/backend/utils/treeUtil'
+                    },
+                    {
+                        text: '增量更新工具类',
+                        link: '/backend/utils/updateUtil'
                     }
                 ]
             },

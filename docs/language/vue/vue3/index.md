@@ -653,6 +653,35 @@ export default router
   <button @click="gotoList"></button>
 </template>
 ```
+## 3. 全局路由守卫
+> 使用了Pinia之后，全局路由守卫的写法也有所变化
+```js
+import { createRouter, createWebHistory } from 'vue-router'
+import Layout from '@/views/layout/index.vue'
+import { useUserInfoStore } from '@/stores/userInfo'
+
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [],
+})
+router.beforeEach((to, from, next) => {
+  // 一定要卸载这里，否则这个useUserInfoStore会报错，因为还没安装好store
+  const userInfoStore = useUserInfoStore()
+  const token = userInfoStore.token
+  if (to.path === '/login') {
+    next()
+  } else {
+    if (token) {
+      next()
+    } else {
+      next('/login')
+    }
+  }
+})
+export default router
+
+```
 
 # 6. 按需导入
 > 安装`unplugin-vue-components` `unplugin-auto-import`这两个插件以后就再也不用写 import xxx form '@/xxx/xxx.vue'了, 以ElementPlus为例
