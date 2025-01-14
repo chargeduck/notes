@@ -1,15 +1,14 @@
 // import {defineConfig} from 'vitepress'
-import {withMermaid} from 'vitepress-plugin-mermaid'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
 // https://vitepress.dev/reference/site-config
 export default withMermaid({
     base: '/notes/',
-    title: "notes",
-    description: "后端仔的学习笔记",
-    vite: {
-    },
+    title: 'notes',
+    description: '后端仔的学习笔记',
+    vite: {},
     markdown: {
-        lineNumbers: true,
+        lineNumbers: true
     },
 
     mermaid: {
@@ -21,8 +20,8 @@ export default withMermaid({
     themeConfig: {
         // https://vitepress.dev/reference/default-theme-config
         nav: [
-            {text: 'Home', link: '/'},
-            {text: 'Examples', link: '/markdown-examples'},
+            { text: 'Home', link: '/' },
+            { text: 'Examples', link: '/markdown-examples' },
             {
                 text: '编程语言',
                 items: [
@@ -49,6 +48,10 @@ export default withMermaid({
                     {
                         text: 'Vue',
                         link: '/language/vue/vue3/index'
+                    },
+                    {
+                        text: 'HarmonyOS',
+                        link: '/language/harmonyOS/arkTs'
                     }
                 ]
             },
@@ -143,8 +146,8 @@ export default withMermaid({
                 text: 'Examples',
                 collapsed: true,
                 items: [
-                    {text: 'Markdown Examples', link: '/markdown-examples'},
-                    {text: 'Runtime API Examples', link: '/api-examples'}
+                    { text: 'Markdown Examples', link: '/markdown-examples' },
+                    { text: 'Runtime API Examples', link: '/api-examples' }
                 ]
             },
             {
@@ -268,6 +271,7 @@ export default withMermaid({
                     {
                         text: 'Php',
                         link: '/language/php/index',
+                        collapsed: true,
                         items: [
                             {
                                 text: 'Php8新特性',
@@ -284,12 +288,13 @@ export default withMermaid({
                         link: '/language/python/index'
                     },
                     {
-                        text: 'golang',
+                        text: 'Golang',
                         link: '/language/golang/index'
                     },
                     {
                         text: 'Java',
                         link: '/language/java/index',
+                        collapsed: true,
                         items: [
                             {
                                 text: 'Java9新特性',
@@ -310,14 +315,31 @@ export default withMermaid({
                             {
                                 text: 'Java21新特性',
                                 link: '/language/java/java21'
-                            },
+                            }
                         ]
                     },
                     {
-                        text: 'vue',
+                        text: 'HarmonyOS',
+                        link: '/language/harmonyOS/arkTs',
+                        collapsed: true,
                         items: [
                             {
-                                text: 'vue3',
+                                text: 'ArkTs',
+                                link: '/language/harmonyOS/arkTs'
+                            },
+                            {
+                                text: 'ArkUI',
+                                link: '/language/harmonyOS/arkUI'
+                            }
+                        ]
+                    },
+                    {
+                        text: 'Vue',
+                        collapsed: true,
+                        link: '/language/vue/vue3/index',
+                        items: [
+                            {
+                                text: 'Vue3',
                                 link: '/language/vue/vue3/index',
                                 items: [
                                     {
@@ -325,13 +347,13 @@ export default withMermaid({
                                         link: '/language/vue/vue3/index'
                                     },
                                     {
-                                        text: 'pinia',
+                                        text: 'Pinia',
                                         link: '/language/vue/vue3/pinia'
                                     }
                                 ]
                             },
                             {
-                                text: 'vue2',
+                                text: 'Vue2',
                                 link: '/language/vue//vue2/index',
                                 items: [
                                     {
@@ -339,11 +361,11 @@ export default withMermaid({
                                         link: '/language/vue/vue2/index'
                                     },
                                     {
-                                        text: 'vuex',
+                                        text: 'Vuex',
                                         link: '/language/vue/vue2/vuex'
                                     },
                                     {
-                                        text: 'vant购物车',
+                                        text: 'Vant购物车',
                                         link: '/language/vue/vue2/vant'
                                     }
                                 ]
@@ -355,7 +377,7 @@ export default withMermaid({
         ],
 
         socialLinks: [
-            {icon: 'github', link: 'https://github.com/chargeduck/notes'}
+            { icon: 'github', link: 'https://github.com/chargeduck/notes' }
         ],
         docFooter: {
             prev: '上一篇',
@@ -366,7 +388,7 @@ export default withMermaid({
             level: [1, 2]
         },
         search: {
-            provider: 'local',
+            provider: 'local'
             // options: {
             //   appId: 'WREY2TJAEX',
             //   apiKey: 'f9da2db9a163ef90f59b268823c3cb9f',
