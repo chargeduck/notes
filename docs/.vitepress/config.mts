@@ -236,6 +236,10 @@ export default withMermaid({
                     {
                         text: '增量更新工具类',
                         link: '/backend/utils/updateUtil'
+                    },
+                    {
+                        text: 'WebSocket',
+                        link: '/backend/utils/websocketUtil'
                     }
                 ]
             },
