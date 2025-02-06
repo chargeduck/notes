@@ -2,6 +2,7 @@
 [之前写的TreeMenuUtil](https://juejin.cn/post/7087400204319588382),之前用反射写的，这次稍微换了换，总的来说还是换汤不换药吧
 1. TreeUtil 使用了`stream().filter()`
 2. TreeMenuUtil 使用了`stream().collect(Collectors.groupingBy)` 优化获取子节点的方法
+3. [TreeUtil](/backend/utils/treeUtil.html#_3-treeutil-支持lambda表达式)这个用AI写的，彻底抛弃了反射，使用@FunctionalInterface接口，可以使用Lambda表达式
 :::
 
 # 1. TreeUtil
@@ -215,4 +216,107 @@ return TreeMenuUtil.<CollectCategory>builder()
                 .childrenSetter("setChildren")
                 .build()
                 .list2Tree();
+```
+# 3. TreeUtil 支持Lambda表达式
+## 1. 工具类
+> 让Ai优化了一下，使用了`@FunctionalInterface` 接口，使用Lambda表达式来设置children。
+> 而且使用的时候规定了父节点id的泛型。
+
+```java
+import cn.hutool.core.collection.CollUtil;
+import com.google.gson.GsonBuilder;
+import lombok.Builder;
+import lombok.Data;
+
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+@Builder
+public class TreeMenuUtil<T, ID> {
+    private List<T> list;
+    private Function<T, ID> idGetter;
+    private Function<T, ID> parentIdGetter;
+    private ChildrenSetter<T> childrenSetter;
+    private ID rootParentId;
+
+    public List<T> list2Tree() {
+        if (CollUtil.isEmpty(list)) {
+            return list;
+        }
+        List<T> rootNodes;
+        if (rootParentId == null) {
+            rootNodes = list.stream()
+                    .filter(item -> Objects.isNull(parentIdGetter.apply(item)))
+                    .collect(Collectors.toList());
+        } else {
+            Map<ID, List<T>> listMap = list.stream()
+                    .filter(item -> Objects.nonNull(parentIdGetter.apply(item)))
+                    .collect(Collectors.groupingBy(parentIdGetter));
+            rootNodes = listMap.getOrDefault(rootParentId, new ArrayList<>());
+        }
+        if (CollUtil.isEmpty(rootNodes)) {
+            return list;
+        }
+        Map<ID, List<T>> listMap = list.stream()
+                .filter(item -> Objects.nonNull(parentIdGetter.apply(item)))
+                .collect(Collectors.groupingBy(parentIdGetter));
+        rootNodes.forEach(root -> setChildren(root, listMap));
+        return rootNodes;
+    }
+
+    private void setChildren(T parent, Map<ID, List<T>> listMap) {
+        ID parentId = idGetter.apply(parent);
+        List<T> children = listMap.getOrDefault(parentId, new ArrayList<>());
+        childrenSetter.setChildren(parent, children);
+        children.forEach(child -> setChildren(child, listMap));
+    }
+
+    @FunctionalInterface
+    interface ChildrenSetter<T> {
+        void setChildren(T parent, List<T> children);
+    }
+}
+```
+## 2. 使用
+```java
+public class Test {
+    public static void main(String[] args) {
+        List<Node> nodes = Arrays.asList(
+                new Node(1, null),
+                new Node(2, 1),
+                new Node(3, 1),
+                new Node(4, 2),
+                new Node(6, null),
+                new Node(7, 6)
+        );
+
+        TreeMenuUtil<Node, Integer> treeMenuUtil = TreeMenuUtil.<Node, Integer>builder()
+                .list(nodes)
+                .idGetter(Node::getId)
+                .parentIdGetter(Node::getParentId)
+                .childrenSetter(Node::setChildren)
+                .rootParentId(null)
+                .build();
+
+        List<Node> tree = treeMenuUtil.list2Tree();
+        // 处理树形结构
+        System.out.println(new GsonBuilder()
+                .setPrettyPrinting()
+                .create()
+                .toJson(tree));
+    }
+
+    @Data
+    static class Node {
+        private Integer id;
+        private Integer parentId;
+        private List<Node> children;
+
+        public Node(Integer id, Integer parentId) {
+            this.id = id;
+            this.parentId = parentId;
+        }
+    }
+}
 ```
