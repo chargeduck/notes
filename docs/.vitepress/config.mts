@@ -73,6 +73,10 @@ export default withMermaid({
                     {
                         text: 'IO',
                         link: '/backend/io/index'
+                    },
+                    {
+                        text: '工具类',
+                        link: '/backend/utils/index'
                     }
                 ]
             },
@@ -240,6 +244,10 @@ export default withMermaid({
                     {
                         text: 'WebSocket',
                         link: '/backend/utils/websocketUtil'
+                    },
+                    {
+                        text: '通用解压缩策略',
+                        link: '/backend/utils/decompressionUtil'
                     }
                 ]
             },
