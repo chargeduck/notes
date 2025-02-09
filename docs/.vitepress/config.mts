@@ -20,8 +20,24 @@ export default withMermaid({
     themeConfig: {
         // https://vitepress.dev/reference/default-theme-config
         nav: [
-            { text: 'Home', link: '/' },
-            { text: 'Examples', link: '/markdown-examples' },
+            { text: '主页', link: '/' },
+            {
+                text: '游戏开发',
+                items: [
+                    {
+                        text: 'Cocos',
+                        link: '/game/cocos/index'
+                    },
+                    {
+                        text: 'Unity',
+                        link: '/game/unity/index'
+                    },
+                    {
+                        text: 'Unreal',
+                        link: '/game/unreal/index'
+                    }
+                ]
+            },
             {
                 text: '编程语言',
                 items: [
@@ -381,6 +397,41 @@ export default withMermaid({
                                         link: '/language/vue/vue2/vant'
                                     }
                                 ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                text: '游戏开发',
+                collapsed: true,
+                items: [
+                    {
+                        text: 'Cocos',
+                        collapsed: true,
+                        items: [{
+                            text: '简介',
+                            link: '/game/cocos/index'
+                        }]
+                    },
+                    {
+                        text: 'Unity',
+                        collapsed: true,
+                        items: [
+                            {
+                                text: '简介',
+                                link: '/game/unity/index'
+                            }
+                        ]
+                    },
+
+                    {
+                        text: 'Unreal',
+                        collapsed: true,
+                        items: [
+                            {
+                                text: '简介',
+                                link: '/game/unreal/index'
                             }
                         ]
                     }

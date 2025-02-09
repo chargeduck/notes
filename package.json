@@ -5,7 +5,7 @@
     "vitepress-plugin-mermaid": "^2.0.17"
   },
   "scripts": {
-    "docs:dev": "vitepress dev docs --host",
+    "docs:dev": "vitepress dev docs --host ::",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
   },
