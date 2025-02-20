@@ -68,6 +68,10 @@ export default withMermaid({
                     {
                         text: 'HarmonyOS',
                         link: '/language/harmonyOS/arkTs'
+                    },
+                    {
+                        text: 'C#',
+                        link: '/language/cs/index',
                     }
                 ]
             },
