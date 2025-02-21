@@ -1,4 +1,7 @@
 # 1. 差异
+1. 方法名采用大驼峰命名，首字母也要大写
+2. 常量用小写，跟 java 反着来的
+
 ## 1. String
 > 与 Java 中类似，但是可以通过在字符串的前边添加上`@`来使字符串里边的转义字符不生效,同样的也可以使String支持多行
 ```cs
@@ -22,3 +25,13 @@ Console.WriteLine("{1} + {1} = {2}", 0, 1, 2);
 String str = Console.ReadLine();
 Console.WriteLine(str);
 ```
+
+## 3. 常量
+> 和 js 等一样，用`const`来表示常量，初始化之后这个常量的值就不允许修改了
+
+```cs
+const double pi = 3.1415926535;
+```
+
+## 4. 结构体 struct
+> 
