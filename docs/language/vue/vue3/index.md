@@ -567,10 +567,14 @@ watchEffect(() => {
 ```
 ## 2. defineModel
 > vue3中，自定义组件使用 v-model 相当于传递一个modelValue属性和一个 update:modelValue事件。这样使用起来会有很多重复代码
+>
+> 
+
+### 1. props和emit写法
 
 - parent.vue
+
 ```vue
-<son v-model="isVisible"/>
 <son :modelValue="isVisible" @update:modelValue="isVisible = $event"/>
 ```
 - son.vue
@@ -585,7 +589,10 @@ watchEffect(() => {
   <input type="text" :value="modelValue" @input="emit('update:modelValue', $event.target.value)"/>
 </template>
 ```
+### 2. definModel
+
 > 通过defineModel 宏函数，可以简化上述代码
+
 1. 首先开启defineModel, 修改`vite.config.js`
 ```js
 import { defineConfig } from 'vite'
@@ -601,15 +608,33 @@ export default defineConfig({
 })
 
 ```
-2. 修改son.vue
+2. 使用v-model直接绑定父组件的数据
+
+```vue
+<script setup>
+const theme = ref('black')
+const showEdit = ref(boolean)
+</script>
+<template>
+	<son v-model="theme" />
+	<!--如果绑定多个参数，可以按下下边的方式-->
+	<son v-model:theme="theme" v-model:showEdit="showEdit" />
+</template>
+```
+
+
+
+3. 修改son.vue
+
 ```vue
  <script setup>
+     
   const modelValue = defineModel()
   // 多个参数可以指定参数名称
   const theme = defineModel('theme')
 </script>
 <template>
-  <input type="text" :value="modelValue" @input="emit('update:modelValue', $event.target.value)"/>
+  <input type="text" v-model="theme"/>
 </template>
 ```
 # 5. VueRouter

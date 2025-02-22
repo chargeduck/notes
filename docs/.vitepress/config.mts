@@ -403,6 +403,10 @@ export default withMermaid({
                                 ]
                             }
                         ]
+                    },
+                    {
+                        text: 'C#',
+                        link: '/language/cs/index'
                     }
                 ]
             },

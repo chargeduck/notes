@@ -3,6 +3,14 @@
 :::
 
 ## 1. 引入项目依赖
+
+> **注意，使用这个工具的时候, 如果使用Hutool-all的ExcelUtil导出数据时，会报错**
+>
+> `Caused by: java.lang.NoSuchMethodError: org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream.putArchiveEntry(Lorg/apache/commons/compress/archivers/zip/ZipArchiveEntry;)V`
+>
+> 原因是因为 hutool导出是需要使用 `poi-ooxml`, 然后这个依赖里边用了一个`commons-compress`, 然后可能就有冲突了。
+> 如果用了hutool的话就不要添加`commons-compress`依赖了。
+
 ```xml
 <!-- Zip直接用JDK自带的就行了 -->
 <!-- Apache Commons Compress 用于处理 tar、gz 、7z等格式 -->
