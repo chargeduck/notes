@@ -258,6 +258,10 @@ export default withMermaid({
                         link: '/backend/utils/treeUtil'
                     },
                     {
+                        text: 'PageUtil一对多分页工具类',
+                        link: '/backend/utils/pageUtil'
+                    },
+                    {
                         text: '增量更新工具类',
                         link: '/backend/utils/updateUtil'
                     },
@@ -268,6 +272,10 @@ export default withMermaid({
                     {
                         text: '通用解压缩策略',
                         link: '/backend/utils/decompressionUtil'
+                    },
+                    {
+                        text: '可重复读Request',
+                        link: '/backend/utils/repeatedlyReadRequest'
                     }
                 ]
             },
