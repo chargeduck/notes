@@ -175,107 +175,12 @@ export default withMermaid({
                 ]
             },
             {
-                text: '消息中间件',
-                collapsed: true,
-                items: [
-                    {
-                        text: 'ActiveMq尚硅谷版',
-                        link: '/backend/mq/activemq_antguigu'
-                    },
-                    {
-                        text: 'RocketMq',
-                        items: [
-                            {
-                                text: '尚硅谷版',
-                                link: '/backend/mq/rocketmq/rocketmq_antguigu'
-                            },
-                            {
-                                text: '黑马版',
-                                link: '/backend/mq/rocketmq/rocketmq_itcast'
-                            },
-                            {
-                                text: '自己整理',
-                                link: '/backend/mq/rocketmq/rocketmq'
-                            }
-                        ]
-                    },
-                    {
-                        text: 'Kafka',
-                        items: [
-                            {
-                                text: 'Kafka简介',
-                                link: '/backend/mq/kafka/index'
-                            },
-                            {
-                                text: 'Centos安装Kafka集群(Kraft)',
-                                link: '/backend/mq/kafka/centos_cluster'
-                            }
-                        ]
-                    }
-
-                ]
-            },
-            {
                 text: '审批流',
                 collapsed: true,
                 items: [
                     {
                         text: 'Flowable审批流',
                         link: '/backend/flowable/flowable'
-                    }
-                ]
-            },
-            {
-                text: '工具类',
-                collapsed: true,
-                items: [
-                    {
-                        text: 'Vitepress部署GithubPage',
-                        link: '/frontend/vitepress/vitepress'
-                    },
-                    {
-                        text: 'EasyExcel导出工具类，动态合并表头',
-                        link: '/backend/utils/dynamicMergeHeader'
-                    },
-                    {
-                        text: '导出Word工具类',
-                        link: '/backend/utils/exportWord'
-                    },
-                    {
-                        text: '自定义权限注解',
-                        link: '/backend/utils/permissionControl'
-                    },
-                    {
-                        text: 'Dynamic多数据源',
-                        link: '/backend/utils/dynamicDatasource'
-                    },
-                    {
-                        text: 'Cors跨域配置',
-                        link: '/backend/utils/corsConfig'
-                    },
-                    {
-                        text: 'TreeUtil',
-                        link: '/backend/utils/treeUtil'
-                    },
-                    {
-                        text: 'PageUtil一对多分页工具类',
-                        link: '/backend/utils/pageUtil'
-                    },
-                    {
-                        text: '增量更新工具类',
-                        link: '/backend/utils/updateUtil'
-                    },
-                    {
-                        text: 'WebSocket',
-                        link: '/backend/utils/websocketUtil'
-                    },
-                    {
-                        text: '通用解压缩策略',
-                        link: '/backend/utils/decompressionUtil'
-                    },
-                    {
-                        text: '可重复读Request',
-                        link: '/backend/utils/repeatedlyReadRequest'
                     }
                 ]
             },
@@ -450,6 +355,16 @@ export default withMermaid({
                                 link: '/game/unreal/index'
                             }
                         ]
+                    }
+                ]
+            },
+            {
+                text: 'cloud',
+                collapsed: true,
+                items: [
+                    {
+                        text: 'Sentinel',
+                        link: '/backend/cloud/sentinel'
                     }
                 ]
             }
