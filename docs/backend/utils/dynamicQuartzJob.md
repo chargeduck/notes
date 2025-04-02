@@ -592,7 +592,8 @@ public class TaskConfigServiceImpl extends ServiceImpl<TaskConfigMapper, TaskCon
         TaskDescVo vo = null;
         for (String beanName : beanNames) {
             Object bean = applicationContext.getBean(beanName);
-            Class<?> beanClass = bean.getClass();
+            // 使用 AopUtils 来获取代理对象的原始类， 否则获得的是代理类，无法获取@Service等类上的注解
+            Class<?> beanClass = AopUtils.getTargetClass(bean);
             if (beanClass.isAnnotationPresent(TaskDesc.class)) {
                 TaskDesc annotation = beanClass.getAnnotation(TaskDesc.class);
                 vo = new TaskDescVo();
