@@ -13,3 +13,4 @@
 9. [7z zip rar tar gz tar.gz 解压缩工具类](/backend/utils/decompressionUtil.html)
 10. [分片下载工具类](/backend/utils/partialDownloadUtil.html)
 11. [可重复读Request](/backend/utils/repeatedlyReadRequest.html)
+12. [自定义注解配置动态增加Quartz定时任务](/backend/utils/dynamicQuartzJob.html)
