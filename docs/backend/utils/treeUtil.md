@@ -273,7 +273,7 @@ public class TreeMenuUtil<T, ID> {
     }
 
     @FunctionalInterface
-    interface ChildrenSetter<T> {
+    public interface ChildrenSetter<T> {
         void setChildren(T parent, List<T> children);
     }
 }
