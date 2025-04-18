@@ -365,6 +365,10 @@ export default withMermaid({
                     {
                         text: 'Sentinel',
                         link: '/backend/cloud/sentinel'
+                    },
+                    {
+                        text: 'Seata',
+                        link: '/backend/cloud/seata'
                     }
                 ]
             }
