@@ -71,7 +71,7 @@ export default withMermaid({
                     },
                     {
                         text: 'C#',
-                        link: '/language/cs/index',
+                        link: '/language/cs/index'
                     }
                 ]
             },
@@ -202,6 +202,16 @@ export default withMermaid({
                 text: '前端',
                 collapsed: true,
                 items: [
+                    {
+                        text: '工具类',
+                        collapsed: true,
+                        items: [
+                            {
+                                text: '暗色模式',
+                                link: '/frontend/utils/darkTheme'
+                            }
+                        ]
+                    },
                     {
                         text: '动态表格',
                         link: '/frontend/utils/dynamicTable'
