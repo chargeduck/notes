@@ -591,7 +591,8 @@ watchEffect(() => {
 ```
 ### 2. definModel
 
-> 通过defineModel 宏函数，可以简化上述代码
+> 通过defineModel 宏函数，可以简化上述代码<br/>
+> **<font color=red>注意一定要在父组件里边使用`v-model:`来绑定，如果直接使用`:attr`是单向绑定的，从子组件不能改变父组件的值</font>**
 
 1. 首先开启defineModel, 修改`vite.config.js`
 ```js
