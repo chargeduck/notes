@@ -15,7 +15,7 @@ Centos服务器，java开发环境初始化搭建 <br/>
 > 输入以下命令:
 > 
 ```shell
-bash <(curl -sSL https://linuxmirrors.cn/main.sh)
+bash <(curl -sSL -k https://linuxmirrors.cn/main.sh)
 ```
 然后选择中国科技大学或者清华大学，一直按回车不要按Y，源更换完成就可以正常安装软件了
 

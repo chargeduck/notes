@@ -160,6 +160,10 @@ export default withMermaid({
                     {
                         text: 'Electron仿QQ音乐',
                         link: '/frontend/electron/index'
+                    },
+                    {
+                        text: 'Echarts',
+                        link: '/frontend/echarts/index'
                     }
                 ]
             }
