@@ -282,8 +282,11 @@ private void button2_Click(object sender, EventArgs e)
     Pen pen = new Pen(Color.Black);
     g.DrawLine(pen, new Point(100, 100), new Point(500, 600));
     byte[] imageBytes = Resources.Boss;
-   
+    Bitmap bitmap = byteArr2Bitmap(imageBytes);
+    // 让黑色变成透明的
+    bitmap.MakeTransparent(Color.Black);
     g.DrawImage(byteArr2Image(imageBytes), 100, 100);
+    g.DrawImage(bitmap, 200, 200);
     
 }
 /**
@@ -292,5 +295,10 @@ private void button2_Click(object sender, EventArgs e)
 private Image byteArr2Image(byte[] bytes)
 {
     return Image.FromStream(new MemoryStream(bytes));
+}
+
+private Bitmap byteArr2Bitmap(byte[] bytes)
+{
+    return (Bitmap)Bitmap.FromStream(new MemoryStream(bytes));
 }
 ```

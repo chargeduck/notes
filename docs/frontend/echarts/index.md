@@ -582,3 +582,35 @@ $.get('../json/map/china.json', function (ret) {
 }
 ```
 
+# 3. 动画的使用
+
+## 1. 加载动画
+
+> Echarts已经内置好了加载数据的动画，我们只需要在核实的时机显示加载动画就行了
+
+1. 显示加载动画
+
+```js
+mCharts.showLoading()
+```
+
+2. 隐藏加载动画
+
+```js
+mCharts.hideLoading()
+```
+
+3. 具体使用
+
+```js
+const mCharts = echarts.init(document.querySelector('div'))
+mCharts.showLoading() // 在获取数据之前展示加载动画
+API().then(resp => {
+    mCharts.hideLoading() //获取数据之后隐藏loading
+})
+```
+
+
+
+## 2. 增量动画
+
