@@ -1,0 +1,1 @@
+import{_ as e,o as t,c as r}from"./chunks/framework.3IDgao2s.js";const m=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"server/K8s.md","filePath":"server/K8s.md"}'),s={name:"server/K8s.md"};function a(o,c,n,p,_,d){return t(),r("div")}const f=e(s,[["render",a]]);export{m as __pageData,f as default};

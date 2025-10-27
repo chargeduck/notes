@@ -1,0 +1,1 @@
+import{_ as e,o as t,c as a}from"./chunks/framework.3IDgao2s.js";const _=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"game/godot/index.md","filePath":"game/godot/index.md"}'),o={name:"game/godot/index.md"};function n(r,d,s,c,i,m){return t(),a("div")}const f=e(o,[["render",n]]);export{_ as __pageData,f as default};
