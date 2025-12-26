@@ -158,6 +158,10 @@ export default withMermaid({
                         link: '/frontend/utils/mockjs'
                     },
                     {
+                        text: 'Css常见问题',
+                        link: '/frontend/utils/cssQa'
+                    },
+                    {
                         text: 'Electron仿QQ音乐',
                         link: '/frontend/electron/index'
                     },

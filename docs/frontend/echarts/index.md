@@ -1,6 +1,6 @@
 # 0. 基础使用。
 
-> Echarts的官网地址是[https://echarts.apache.org/zh/index.html](https://echarts.apache.org/zh/index.html)，总得来说一共就是五个步骤
+> Echarts的[官网地址](https://echarts.apache.org/zh/index.html)，[当前echarts进度](https://www.bilibili.com/video/BV1bh41197p8?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=33)总得来说一共就是五个步骤,
 
 1. 引入Echarts库
 
@@ -201,6 +201,18 @@ const option = {
   ]
 }
 ```
+
+## 5. 常用图表类型
+
+| 类型   | type                           |
+|------|--------------------------------|
+| 柱状图  | bar                            |
+| 折线图  | line                           |
+| 散点图  | scatter<br/>effectScatter 涟漪效果 |
+| 矢量地图 | geo                            |
+| 饼图   | pie                            |
+| 雷达图  | radar                          |
+| 仪表盘  | gauge                          |
 
 # 2. 坐标系图表类型
 
@@ -422,7 +434,9 @@ const option = {
 }
 ```
 
-## 4.饼图
+# 3. 非坐标系图表
+
+## 1. 饼图
 
 > series 中的 type 为 pie 即可, 数据类型必须包含 name 和 value
 
@@ -500,7 +514,7 @@ const option = {
 }
 ```
 
-## 5. 地图
+## 2. 地图
 
 ### 1. 矢量地图 GIS
 
@@ -546,7 +560,7 @@ $.get('../json/map/china.json', function (ret) {
    * 2. 把数据设置给series
    * 3. 把series跟geo关联起来
    * 4. 结合visualMap展示不同的颜色
-   * 
+   *
    */
   const airArr = [{ name: '北京', value: 22.5 }, { name: '上海', value: 23.5 }]
   const option = {
@@ -580,6 +594,223 @@ $.get('../json/map/china.json', function (ret) {
   }
   myChart.setOption(option)
 }
+```
+
+2. 结合散点图展示数据
+
+```js
+/**
+ * 1. 给series增加新的对象
+ * 2. 给散点图准备数据，配置给series的另外一个对象
+ * 3. 新的series对象设置为type effectScatter
+ * 4. 指明散点图的坐标系统为 geo, coordinateSystem: 'geo'
+ * 5. 调整散点图的涟漪动画效果 brushType: 'stroke'
+ */
+const series = [{
+    type: 'map',
+    data: airData,
+    geoIndex: 0
+  }, {
+    type: 'effectScatter',
+    data: scatterData,
+    coordinateSystem: 'geo', //指定散点图的坐标系统
+    rippleEffect: {
+      brushType: 'stroke',
+      scale: 5,
+      lineWidth: 10
+    }
+  }]
+```
+
+## 3. 雷达图
+
+> series 中的 type 为 radar 即可, 数据类型必须包含 name 和 value,
+> 需要定义各个维度的最大值 `indicator:[{name:'维度1',max:100}]`
+
+```js
+const option = {
+  radar: {
+    indicator: [
+      { name: '易用性', max: 100 },
+      { name: '功能完善性', max: 100 },
+      { name: '性能', max: 100 },
+      { name: '稳定性', max: 100 },
+      { name: '用户支持', max: 100 },
+      { name: '价格', max: 100 }
+    ],
+    shape: 'circle' // 配置雷达图的形状为圆形
+  },
+  tooltip: {
+    trigger: 'item'
+  },
+  series: [
+    {
+      type: 'radar',
+      data: [
+        {
+          name: '华为',
+          value: [10, 20, 30, 40, 50, 60, 10]
+        },
+        {
+          name: '中兴',
+          value: [60, 50, 40, 30, 10, 10, 70]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## 4. 仪表盘
+
+> 主要用于进度的把控和数据范围的检测
+
+```js
+const option = {
+  series: [
+    {
+      type: 'gauge',
+      data: [
+        {
+          value: 99
+        }
+      ]
+    }
+  ]
+}
+```
+
+# 4. 主题切换
+
+## 1. 内置主题
+
+> Echarts内置了两套主题，light和dark，通过init方法进行切换
+
+```js
+const mChart = echarts.init(dom, 'dark')
+```
+
+## 2. 自定义主题
+
+1. [在线编辑主题](https://echarts.apache.org/zh/theme-builder.html)
+
+2. 下载js到本地。
+3. 引入主题js文件
+
+```html
+
+<script src="themes/websores.js">
+```
+
+4. 在init中使用
+
+```js
+// 这个名字在js文件里可以找到 echarts.registerTheme找到
+echarts.init(dom, 'webstores')
+```
+
+## 3. 调色盘
+
+### 1. 主题调色盘
+
+> 去对应的主题js文件中找到`echarts.registerTheme`里边修改color属性即可
+
+### 2. 全局调色盘
+
+> 这个调色盘会覆盖掉主题调色盘的显示内容。
+
+```js
+const option = {
+  color: ['red', 'yellow']
+}
+```
+
+### 3. 局部调色盘
+
+> 设置给series下边的某一个对象,会覆盖掉全去的调色盘，<font color=red>遵循就近原则</font>
+
+```js
+const series = [{
+  type： 'pie',
+  data
+:
+pieData,
+  color
+:
+colorArr
+}]
+```
+
+## 4. 颜色渐变
+
+### 1. 线性渐变
+
+> 按照一个方向进行颜色的慢慢变化
+
+```js
+const option = {
+  itemStyle: {
+    color: {
+      type: 'linear',
+      x: 0,
+      y: 0,
+      x2: 0,
+      y2: 1,
+      colorStops: [{
+        offset: 0, color: '#00ff00' // 0% 处的颜色
+      }, {
+        offset: 1, color: '#ff0000' // 100% 处的颜色
+      }]
+    }
+  }
+}
+```
+
+### 2. 径向渐变
+
+> 根据一个点对四周进行辐射，实现颜色渐变
+
+# 5. 样式
+
+## 1. 直接样式
+
+> 包含 itemStyle textStyle lineStyle areaStyle label
+
+## 2. 高亮样式
+
+> 鼠标划过之后的样式，使用`emphasis`包裹代码块就行
+
+```js
+const option = {
+  series: [{
+    type: 'pie',
+    emphasis: {
+      itemStyle: {
+        color: 'red'
+      }
+    }
+  }]
+}
+```
+
+# 6. 自适应
+
+1. 只给容器设置高度
+
+```html
+<div style="height:400px"></div>
+```
+
+2. 在窗口尺寸发生变化的时候调用echarts实例对象的方法
+
+```js
+const myCharts = echarts.init(DOM)
+window.onresize = function () {
+    console.log('window resize')
+    myCharts.resize()
+}
+// 或者用下边这种
+window.onresize = myCharts.resize
 ```
 
 # 3. 动画的使用
