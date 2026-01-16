@@ -23,9 +23,14 @@ yum update
 # yum-util 提供 yum-config-manager功能，另外两个是devicemapper驱动依赖的
 yum install -y yum-utils device-mapper-persistent-data lvm2
 # 设置yum源
-yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+#yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 # 安装docker
-yum install -y docker-ce docker-ce-cli containerd.io
+#yum install -y docker-ce docker-ce-cli containerd.io
+# 建议使用aliyun
+yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+# 通过命令一件安装
+curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+
 # 查看docker版本
 docker -v
 # 设置开机自启动
@@ -60,6 +65,31 @@ sudo add-apt-repository "deb [arch=amd64] http://mirrors.aliyun.com/docker-ce/li
 apt-get install docker-ce docker-ce-cli containerd.io
 # 后边的开启自启啥的都一样了
 
+```
+```shell
+# 卸载旧版本
+sudo apt-get remove docker docker-engine docker.io containerd runc
+# 1. 更新apt包索引并安装必要依赖
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# 2. 添加Docker官方GPG密钥（验证包的合法性）
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/docker.gpg
+
+# 3. 添加Docker软件源到apt源列表
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/trusted.gpg.d/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+# 1. 更新apt索引（加载新添加的Docker源）
+sudo apt-get update
+
+# 2. 安装最新版Docker Engine、CLI和Containerd
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# 启动Docker服务
+sudo systemctl start docker
+
+# 设置开机自启
+sudo systemctl enable docker
+# 运行官方的hello-world镜像，测试Docker是否正常工作
+sudo docker run hello-world
 ```
 
 **错误解决**
