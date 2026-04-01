@@ -1,5 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=6)
+golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=9)
 
 # 1. 下载安装及简单示例
 
@@ -162,16 +162,16 @@ const (
 >
 > 无符号整型 `uint8 uint16 uint32 uint64 `
 
-| 类型     | 占用字节 | 范围                                         | 范围                                  |
-|--------|------|--------------------------------------------|-------------------------------------|
-| int8   | 1    | [-128,127]                                 | [-2<sup>7</sup>,2<sup>7</sup> -1]   |
-| int16  | 2    | [-32768,32767]                             | [-2<sup>15</sup>,2<sup>15</sup> -1] |
-| int32  | 4    | [-2147483648,2147483647]                   | [-2<sup>31</sup>,2<sup>31</sup> -1] |
-| int64  | 8    | [-9223372036854775808,9223372036854775807] | [-2<sup>63</sup>,2<sup>63</sup> -1] |
-| uint8  | 1    | [0,255]                                    | [0,2<sup>8</sup> -1]                |
-| uint16 | 2    | [0,65535]                                  | [0,2<sup>16</sup> -1]               |
-| uint32 | 4    | [0,4294967295]                             | [0,2<sup>32</sup> -1]               |
-| uint64 | 8    | [0,18446744073709551615]                   | [0,2<sup>64</sup> -1]               |
+| 类型   | 占用字节 | 对比Java | 范围                                       | 范围                                |
+| ------ | -------- | -------- | ------------------------------------------ | ----------------------------------- |
+| int8   | 1        | byte     | [-128,127]                                 | [-2<sup>7</sup>,2<sup>7</sup> -1]   |
+| int16  | 2        | short    | [-32768,32767]                             | [-2<sup>15</sup>,2<sup>15</sup> -1] |
+| int32  | 4        | int      | [-2147483648,2147483647]                   | [-2<sup>31</sup>,2<sup>31</sup> -1] |
+| int64  | 8        | long     | [-9223372036854775808,9223372036854775807] | [-2<sup>63</sup>,2<sup>63</sup> -1] |
+| uint8  | 1        |          | [0,255]                                    | [0,2<sup>8</sup> -1]                |
+| uint16 | 2        |          | [0,65535]                                  | [0,2<sup>16</sup> -1]               |
+| uint32 | 4        |          | [0,4294967295]                             | [0,2<sup>32</sup> -1]               |
+| uint64 | 8        |          | [0,18446744073709551615]                   | [0,2<sup>64</sup> -1]               |
 
 ```go
 // int 类型
@@ -179,8 +179,153 @@ var num = 10
 fmt.Printf("num = %v, %T\n", num, num)
 // int8 类型
 var b int8 = 100
+// 通过 unsafe.Sizeof 查看变量占用的字节数
+fmt.Printf("b = %v, %T\n", b, unsafe.Sizeof(b))
 // uint8(0-255)
 // int8 int 16 ...
+var a1 int16 = 100
+var a2 int32 = 200
 // int不同长度直接转换
-// int格式化输出
+fmt.Printf("a1 = %v, a2 = %v\n", a1, int16(a2))
 ```
+
+格式化输出
+
+| 序号 | 格式化符 | 说明        |
+|----|------|-----------|
+| 1  | %v   | 默认格式化输出   |
+| 2  | %T   | 输出变量类型    |
+| 3  | %d   | 输出整数      |
+| 4  | %f   | 输出浮点数     |
+| 5  | %s   | 输出字符串     |
+| 6  | %c   | 输出字符      |
+| 7  | %d   | 输出十进制整数   |
+| 8  | %b   | 输出二进制数    |
+| 9  | %o   | 输出八进制数    |
+| 10 | %x   | 输出十六进制数   |
+| 11 | %X   | 输出十六进制数大写 |
+
+### 2. 浮点型
+> 跟Java中的 double float应该是一样的，<font color=red>在Golang中默认的是float64</font>
+
+| 类型    | 占用字节 | 对比Java | 范围 | 范围 |
+| ------- | -------- | -------- | ---- | ---- |
+| float32 | 4        | float    |      |      |
+| float64 | 8        | double   |      |      |
+
+```go
+func main() {
+	var a float32 = 3.1415926
+	fmt.Printf("val: %v --%f, type: %T, size: %v\n", a, a, a, unsafe.Sizeof(a))
+    var a2 float64 = 3.1415926
+	fmt.Printf("val: %v --%f, type: %T, size: %v\n", a2, a2, a2,unsafe.Sizeof(a2))
+}
+```
+
+> golang中科学计数法表示浮点类型
+
+```go
+// 这一点还是比较不错的
+a3 := 1e-3
+fmt.Printf("val: %v --%f, type: %T, size: %v\n", a3, a3, a3,unsafe.Sizeof(a3))
+// val: 0.001 --0.001000, type: float64, size: 8
+```
+
+> 解决golang中的float精度丢失问题，需要使用到第三方库，从go 1.6之后需要有两步操作
+>
+> ```shell
+> # 初始化项目目录
+> go mod init golang_demo
+> # 下载对应的包
+> go get github.com/shopspring/decimal
+> ```
+>
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/shopspring/decimal"
+)
+
+func main() {
+	m1 := 8.2
+	m2 := 3.8
+	// 原始运算：8.2 - 3.8 = 4.3999999999999995
+	fmt.Printf("原始运算：%v - %v = %v\n", m1, m2, m1-m2)
+	m3 := decimal.NewFromFloat(m2).Sub(decimal.NewFromFloat(m1))
+	// decimal运算：-4.4
+	fmt.Printf("decimal运算：%v\n", m3.String())
+}
+```
+
+### 3. bool
+
+1. 只有true和false两个值,默认是false
+2. bool不能参与任何数值运算
+3. bool不能直接和int等数字类型强制转换
+
+```go
+var flag bool = true
+if flag {
+    fmt.Print("false")
+}
+```
+
+
+
+### 4. string
+
+> 就是一个字符串没什么好说的
+
+| 方法         | 示例                                | 描述                                   |
+| ------------ | ----------------------------------- | -------------------------------------- |
+| 字符串长度   | len(str)                            | 获取字符串的字节长度，中文占用三个字节 |
+| 拼接字符串   | + <br/>fmt.Sprintf                  |                                        |
+| 分割字符串   | strings.Split(str6)                 | 返回的是一个切片，跟数组还有一些不一样 |
+| 是否包含     | strings.contains                    |                                        |
+| 前缀判断     | strings.HasPrefix                   |                                        |
+| 后缀判断     | strings.HasSuffix                   |                                        |
+| 判断子串位置 | strings.Index()                     |                                        |
+|              | strings.LastIndex()                 |                                        |
+| join操作     | strings.Join([]string , sep string) | 把切片变成数组                         |
+
+
+
+```go
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+func main() {
+	str1 := "Hello"
+	str2 := "世界"
+	// 字节长度 5 6
+	fmt.Printf("%s 长度 %v %s 长度 %v\n", str1, len(str1), str2, len(str2))
+	// 拼接字符串
+	str3 := str1 + str2
+	fmt.Println(str3)
+	// 通过格式化输出拼接字符串
+	str4 := fmt.Sprintf("%v %v", str1, str2)
+	fmt.Println(str4)
+	// 反引号换行 所有的转移字符无效
+	str5 := `123
+			\n4567`
+	fmt.Println(str5)
+	// 字符串分割，string.Split 需要引入包
+	str6 := "123-456-789"
+	arr := strings.Split(str6, "-")
+	// [123-456-789] 类型是 []string 切片是可以动态扩容的 数组是写死长度的 如果是[3]string 就是固定长度的数组
+	fmt.Printf("%s 类型是 %T\n", arr, arr)
+	str7 := strings.Join(arr, "::")
+	fmt.Println(str7)
+    // 剩下的方法自己看就行了，跟java一样的
+}
+
+```
+
+### 5. byte和rune
