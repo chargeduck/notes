@@ -152,7 +152,7 @@ const (
 )
 ```
 
-## 3. go中的数据类型
+## 3. 基本数据类型
 
 ### 1. 整型
 
@@ -277,7 +277,7 @@ if flag {
 
 ### 4. string
 
-> 就是一个字符串没什么好说的
+> 就是一个字符串没什么好说的,<font color=red>unsafe.SizeOf无法查看string类型的长度，需要用len方法</font>
 
 | 方法         | 示例                                | 描述                                   |
 | ------------ | ----------------------------------- | -------------------------------------- |
@@ -328,4 +328,42 @@ func main() {
 
 ```
 
-### 5. byte和rune
+### 5. byte和rune 字符类型
+
+> golang中的字符有两种情况。
+>
+> 1. uint8类型或者是 byte类型 代表了ASCII中的一个字符
+> 2. rune类型，代表一个UTF8字符，实际上是一个int32类型
+>
+> 在处理中文，日文或者其他服了字符的时候需要用到rune类型，
+
+```go
+func main() {
+	a := 'a'
+	b := 'b'
+	// 97 int32
+	fmt.Printf("val: %v, type: %T\n", a, a)
+	fmt.Printf("val: %v, type: %T\n", b, b)
+	var char rune = '中'
+	fmt.Printf("val: %v, type: %T\n", char, char)
+	str := "this"
+	fmt.Printf("值:%v 原样输出%c 类型:%T", str[2], str[2], str[2])
+	s := "hello 世界！golang不好玩"
+	for _, v := range s {
+		fmt.Printf("%v(%c)\n", v, v)
+	}
+}
+```
+
+> 修改字符串需要先把字符串转换成切片在更改，全是英文可以用`[]byte`,有特殊字符可以用`[]rune`直接用后边的更通用一些。
+
+```go
+arr := []rune(s)
+for i := 0; i < len(arr); i++ {
+    arr[i] = arr[i] - 0x0A
+}
+fmt.Println(string(arr))
+```
+
+### 6. 基本数据类型转换
+
