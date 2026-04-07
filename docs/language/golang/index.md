@@ -1,6 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=9)
-
+golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=17)
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl/go1.24.6.windows-amd64.msi), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -29,7 +28,7 @@ func main() {
 }
 ```
 
-## 2. 变量定义
+# 2. 变量定义
 
 > 在 go语言中 定义变量有两种方式，一种是使用`var` 关键字，另一种是使用:= 操作符
 >
@@ -152,9 +151,9 @@ const (
 )
 ```
 
-## 3. 基本数据类型
+# 3. 基本数据类型
 
-### 1. 整型
+## 1. 整型
 
 > 在go中整型分为两大类
 >
@@ -162,16 +161,16 @@ const (
 >
 > 无符号整型 `uint8 uint16 uint32 uint64 `
 
-| 类型   | 占用字节 | 对比Java | 范围                                       | 范围                                |
-| ------ | -------- | -------- | ------------------------------------------ | ----------------------------------- |
-| int8   | 1        | byte     | [-128,127]                                 | [-2<sup>7</sup>,2<sup>7</sup> -1]   |
-| int16  | 2        | short    | [-32768,32767]                             | [-2<sup>15</sup>,2<sup>15</sup> -1] |
-| int32  | 4        | int      | [-2147483648,2147483647]                   | [-2<sup>31</sup>,2<sup>31</sup> -1] |
-| int64  | 8        | long     | [-9223372036854775808,9223372036854775807] | [-2<sup>63</sup>,2<sup>63</sup> -1] |
-| uint8  | 1        |          | [0,255]                                    | [0,2<sup>8</sup> -1]                |
-| uint16 | 2        |          | [0,65535]                                  | [0,2<sup>16</sup> -1]               |
-| uint32 | 4        |          | [0,4294967295]                             | [0,2<sup>32</sup> -1]               |
-| uint64 | 8        |          | [0,18446744073709551615]                   | [0,2<sup>64</sup> -1]               |
+| 类型     | 占用字节 | 对比Java | 范围                                         | 范围                                  |
+|--------|------|--------|--------------------------------------------|-------------------------------------|
+| int8   | 1    | byte   | [-128,127]                                 | [-2<sup>7</sup>,2<sup>7</sup> -1]   |
+| int16  | 2    | short  | [-32768,32767]                             | [-2<sup>15</sup>,2<sup>15</sup> -1] |
+| int32  | 4    | int    | [-2147483648,2147483647]                   | [-2<sup>31</sup>,2<sup>31</sup> -1] |
+| int64  | 8    | long   | [-9223372036854775808,9223372036854775807] | [-2<sup>63</sup>,2<sup>63</sup> -1] |
+| uint8  | 1    |        | [0,255]                                    | [0,2<sup>8</sup> -1]                |
+| uint16 | 2    |        | [0,65535]                                  | [0,2<sup>16</sup> -1]               |
+| uint32 | 4    |        | [0,4294967295]                             | [0,2<sup>32</sup> -1]               |
+| uint64 | 8    |        | [0,18446744073709551615]                   | [0,2<sup>64</sup> -1]               |
 
 ```go
 // int 类型
@@ -205,13 +204,14 @@ fmt.Printf("a1 = %v, a2 = %v\n", a1, int16(a2))
 | 10 | %x   | 输出十六进制数   |
 | 11 | %X   | 输出十六进制数大写 |
 
-### 2. 浮点型
+## 2. 浮点型
+
 > 跟Java中的 double float应该是一样的，<font color=red>在Golang中默认的是float64</font>
 
-| 类型    | 占用字节 | 对比Java | 范围 | 范围 |
-| ------- | -------- | -------- | ---- | ---- |
-| float32 | 4        | float    |      |      |
-| float64 | 8        | double   |      |      |
+| 类型      | 占用字节 | 对比Java | 范围 | 范围 |
+|---------|------|--------|----|----|
+| float32 | 4    | float  |    |    |
+| float64 | 8    | double |    |    |
 
 ```go
 func main() {
@@ -260,7 +260,7 @@ func main() {
 }
 ```
 
-### 3. bool
+## 3. bool
 
 1. 只有true和false两个值,默认是false
 2. bool不能参与任何数值运算
@@ -273,25 +273,21 @@ if flag {
 }
 ```
 
-
-
-### 4. string
+## 4. string
 
 > 就是一个字符串没什么好说的,<font color=red>unsafe.SizeOf无法查看string类型的长度，需要用len方法</font>
 
-| 方法         | 示例                                | 描述                                   |
-| ------------ | ----------------------------------- | -------------------------------------- |
-| 字符串长度   | len(str)                            | 获取字符串的字节长度，中文占用三个字节 |
-| 拼接字符串   | + <br/>fmt.Sprintf                  |                                        |
-| 分割字符串   | strings.Split(str6)                 | 返回的是一个切片，跟数组还有一些不一样 |
-| 是否包含     | strings.contains                    |                                        |
-| 前缀判断     | strings.HasPrefix                   |                                        |
-| 后缀判断     | strings.HasSuffix                   |                                        |
-| 判断子串位置 | strings.Index()                     |                                        |
-|              | strings.LastIndex()                 |                                        |
-| join操作     | strings.Join([]string , sep string) | 把切片变成数组                         |
-
-
+| 方法     | 示例                                  | 描述                  |
+|--------|-------------------------------------|---------------------|
+| 字符串长度  | len(str)                            | 获取字符串的字节长度，中文占用三个字节 |
+| 拼接字符串  | + <br/>fmt.Sprintf                  |                     |
+| 分割字符串  | strings.Split(str6)                 | 返回的是一个切片，跟数组还有一些不一样 |
+| 是否包含   | strings.contains                    |                     |
+| 前缀判断   | strings.HasPrefix                   |                     |
+| 后缀判断   | strings.HasSuffix                   |                     |
+| 判断子串位置 | strings.Index()                     |                     |
+|        | strings.LastIndex()                 |                     |
+| join操作 | strings.Join([]string , sep string) | 把切片变成数组             |
 
 ```go
 package main
@@ -328,7 +324,7 @@ func main() {
 
 ```
 
-### 5. byte和rune 字符类型
+## 5. byte和rune 字符类型
 
 > golang中的字符有两种情况。
 >
@@ -365,5 +361,216 @@ for i := 0; i < len(arr); i++ {
 fmt.Println(string(arr))
 ```
 
-### 6. 基本数据类型转换
+## 6. 基本数据类型转换
 
+> 数字类型之间的转换，低位转换成高位，否则可能会溢出
+
+```go
+func main() {
+	var a int8 = 20
+	var b int16 = 40
+	print(int16(a) + b)
+}
+```
+
+> 其他类型转换成string类型有两种方式
+
+1. 使用fmt.Sprintf转换
+
+```go
+i := 20
+f := 3.141592653589793
+// 1. 使用 fmt.Sprintf 转换为字符串
+str := fmt.Sprintf("%d", i)
+fmt.Printf("val: %v, type: %T\n", str, str)
+```
+
+2. 通过 strconv进行转换
+
+> 有`FomatInt`、`FormatFloat`、`FormatBool`等方法
+
+```go
+/**
+ * param1: int64 类型的整数
+ * param2: 转换之后的进制
+ */
+str1 := strconv.FormatInt(int64(i), 16)
+fmt.Printf("val: %v, type: %T\n", str1, str1)
+```
+
+```go
+/**
+* param1: float64 类型的浮点数
+* param2: 格式化类型
+* 'f' (-ddd.ddd)
+* 'b' (-dddp±dd) 指数为2进制
+* 'e' (-ddde±dd) 指数为10进制
+* 'E' (-dddE±ddd) 指数为10进制
+* 'g'(指数很大时用'e'否则'f')
+* 'G'(指数很大时用'E'否则'F')
+* param3: 小数位数
+* param4: 转换之后的进制
+*/
+str2 := strconv.FormatFloat(f, 'f', 2, 64)
+```
+
+3. 字符类型转其他类型
+
+> `strconv.ParseInt `、`strconv.ParseFloat`等方法
+
+```go
+// 第二个是error不需要的话可以用匿名变量
+numI, _ := strconv.ParseInt(str1, 10, 64)
+fmt.Printf("val: %v, type: %T\n", numI, numI)
+```
+
+# 4. 运算符
+
+## 1. 算数运算符
+
+> <font color=red>在go中++和--这种自增自减的属于独立的语句，并不是运算符，而且++ --只能用在后边，不能放在变量前边</font>
+
+```go
+i := 0
+// 这两种都是会错误的
+a = i++
+a = i--
+// 这两种会直接提示找不到符号
+++a
+--a
+// 这种是可以的
+i++
+// 1
+print(i)
+```
+
+| 运算符 | 描述    |
+|-----|-------|
+| +   | 加     |
+| -   | 减     |
+| *   | 乘     |
+| /   | 除 取整数 |
+| %   | 取余    |
+
+## 2. 关系运算符
+
+| 符号 | 描述   |
+|----|------|
+| == | 等于   |
+| != | 不等于  |
+| >  | 大于   |
+| >= | 大于等于 |
+| <  | 小于   |
+| <= | 小于等于 |
+
+## 3. 逻辑运算符
+
+| 符号   | 描述 |
+|------|----|
+| &&   | 与  |
+| \|\| | 或  |
+| !    | 非  |
+
+## 4. 位运算符
+
+| 符号  | 描述   |
+|-----|------|
+| &   | 按位与  |
+| \|  | 按位或  |
+| ^   | 按位异或 |
+| ~   | 按位取反 |
+| \>> | 按位右移 |
+| <<  | 按位左移 |
+
+## 5. 赋值运算符
+
+| 符号  | 描述      |
+|-----|---------|
+| =   | 直接赋值    |
+| +=  | 相加后赋值   |
+| -=  | 相减后赋值   |
+| *=  | 相乘后赋值   |
+| /=  | 相除后赋值   |
+| %=  | 取余后赋值   |
+| ^=  | 按位异或后赋值 |
+| \|= | 按位或后赋值  |
+| &=  | 按位与后赋值  |
+| <<= | 按位左移后赋值 |
+| >>= | 按位右移后赋值 |
+| ~=  | 按位取反后赋值 |
+
+# 5. 流程控制
+
+## 1. if else
+
+> 这玩意都是一样的没啥好说的，就是表达式带不带括号都可以
+
+```go
+age := 18
+if age < 14 {
+    
+} else if age >=14 && age <= 18 {
+    
+} else {
+    
+}
+```
+
+## 2. for
+
+> 普通for循环
+
+```go
+for i := 1; i<= 10; i++ {
+    
+}
+```
+
+> for range循环遍历数组，切片，字符串，map channel等
+
+```go
+str3 := "Hello 青岛"
+for index, val := range str3 {
+    fmt.Printf("index: %d, val: %c, type: %T\n", index, val, val)
+}
+```
+
+> 在for循环中可以用break跳出循环体，用continue跳过当前循环，没有while和do...while
+
+## 3. switch case
+
+```go
+extra := ".html"
+switch extra {
+    case ".html":
+    	fmt.Println("html")
+    case ".css":
+    	fmt.Println("css")
+    default:
+    	fmt.Println("default")
+}
+```
+
+# 6. Array和切片
+
+> 数组定义之后长度是不可变的，切片的长度是可变的。
+
+## 1. Array
+
+```go
+// 第一种初始化方法
+var a [3]int
+a[0] = 1
+a[1] = 2
+a[3] = 3
+// 第二种初始化方法
+var v  = [2]int{0,1}
+// 第三种，根据初始化的个数推断数组长度
+var arr3 = [...]int{1,2,3,4,5,6,7}
+```
+
+## 2. slice
+
+> 切片相当于是Java中的List，但是实现逻辑有些微的不同。当做list用就行了
+>
+> 
