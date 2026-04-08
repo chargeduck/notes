@@ -567,10 +567,91 @@ a[3] = 3
 var v  = [2]int{0,1}
 // 第三种，根据初始化的个数推断数组长度
 var arr3 = [...]int{1,2,3,4,5,6,7}
+// 第四种，通过下标创建好值
+arr := [...]int{0:1, 1:10, 2: 20, 5:50}
+```
+
+> 多维数组的时候只有最外层可以自动推导长度
+
+```go
+arr1 := [1][2]string {
+    {"北京", "上海"}
+}
+arr2 := [...][2]string {
+    {"北京", "上海"},
+    {"广州", "深圳"},
+    {"....", "...."}
+}
 ```
 
 ## 2. slice
 
-> 切片相当于是Java中的List，但是实现逻辑有些微的不同。当做list用就行了
+> 切片相当于是Java中的List，但是实现逻辑有些微的不同。当做list用就行了，<font color=red>切片声明之后，默认值是nil</font>
 >
-> 
+> **<font color=red>切片的扩容策略，如果就切片的长度小于1024新的就是旧的2倍，如果超过1024则是增加原来的1/4</font>**
+
+```go
+// 定义切片
+var arr2 []string
+fmt.Printf("arr2: %v\n %T\n", arr2, arr2)
+fmt.Printf(arr2 == nil) //true
+// 使用 append方法往切片中添加值
+var arr2 []string
+str := "Hello"
+str2 := "World"
+arr2 = append(arr2, str, str2)
+```
+
+> 基于数组定义切片，这里的`a[:]`值得注意一下，它其实`:`前后是有两个`index`可以选择的，范围是`[formIndex, toIndex)`
+
+```go
+a := [3]int{0,1,2,3,4,5,6}
+// a[:] 表示获取数组里的所有值
+b := a[:]
+// 从下标1-3
+c := a[1:4]
+// 从下标2到所有的
+d := a[2:]
+// 下标3之前的
+f := a[:3]
+```
+> 使用make来定义一个切片，`make([]T,初始化长度，容量)`
+
+```go
+// 创建一个字符串数组，长度为3，容量为5
+arr1 := make([]string, 3, 5)
+arr1[0] = "hello"
+arr1[1] = "world"
+arr1[2] = "!"
+
+println(arr1[0])
+// 长度3 容量5
+fmt.Printf("len: %v cap: %v", len(arr1), cap(arr1))
+str := "Hello"
+str2 := "World"
+arr1 = append(arr1, str, str2)
+arr2 := []string{"nodeJs", "java"}
+// 还可以用append合并两个切片
+arr1 = append(arr1, arr2...)
+```
+
+> 复制切片的值
+
+```go
+sliceA := []int{1, 2, 3, 4}
+sliceB := make([]int, 4)
+copy(sliceB, sliceA)
+```
+
+> 从切片中删除元素,<font color=red>由于go中没有原生的删除切片元素的方法，可以用切片本省的特性来删除元素</font>
+
+```go
+sliceC := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+// 删除下标为2 的元素  就是用数组分割加上apeend方法
+sliceC = append(sliceC[:2], sliceC[3:]...)
+// 使用slices类库 删除下标为2-3的元素 左闭右开
+slices.Delete(sliceC, 2, 3)
+```
+
+## 3. 排序
+
