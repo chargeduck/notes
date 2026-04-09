@@ -1,5 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=17)
+golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?p=26)
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl/go1.24.6.windows-amd64.msi), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -654,4 +654,138 @@ slices.Delete(sliceC, 2, 3)
 ```
 
 ## 3. 排序
+
+> 除了常规的冒泡排序等，也有工具类可以使用
+
+```go
+func main() {
+	// 生成 int float64 string 类型的随机数每个数组15个元素
+	intList := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 0, 12, 3, 45}
+	float64List := []float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 1.0, 0.0, 12.0, 3.0, 45.0}
+	strList := []string{"a", "A", "c", "m", "C", "t", "y"}
+	sort.Ints(intList)
+	sort.Float64s(float64List)
+	sort.Strings(strList)
+	// 打印排序后的数组
+	fmt.Printf("%v\n", intList)
+	fmt.Printf("%v\n", float64List)
+	fmt.Printf("%v\n", strList)
+    // 倒序 其他的也是类似
+    sort.Sort(sort.Reverse(sort.IntSlice(intList)))
+	sort.Sort(sort.Reverse(sort.Float64Slice(float64List)))
+	sort.Sort(sort.Reverse(sort.StringSlice(strList)))
+}
+```
+
+# 7. map
+
+1. 通过`var mapName = make(map[keyType]valType)`定义map
+
+```go
+var userinfo = make(map[string]string)
+userinfo["name"] = "张三"
+userinfo["age"] = "18"
+fmt.Printf("%v\n", userinfo)
+```
+
+2. 声明map的时候填充元素
+
+```go
+// 声明的时候填充元素
+var userinfo2 = map[string]any{
+    "username": "张三",
+    "age":      18,
+    "sex":      "male",
+    "email":    "zhangsan@example.com",
+    "phone":    "13800000000",
+}
+// 简化写法 
+user := map[string]any{}
+fmt.Printf("%v\n", userinfo2)
+```
+
+3. 修改map的元素数据直接按照key赋值就完事了
+
+```go
+userinfo2["age"] = 28
+```
+
+4. 根据key获取value
+
+> 如果有这个key的话，ok的值就是true 第一个变量就是value的值，不包含这个key返回nil
+
+```go
+
+age, ok := userinfo2["age"]
+fmt.Printf("age: %v, hasKey: %v\n", age, ok)
+```
+
+5. 删除map里边的key
+
+```go
+delete(userinfo2, "age")
+fmt.Printf("%v\n", userinfo2)
+```
+
+6. 循环遍历map
+
+```go
+for k, v := range userinfo2 {
+    fmt.Printf("key: %v, value: %v\n", k, v)
+}
+```
+
+7. 统计单词出现的次数
+
+> 这个相较于java还是简单了一点的
+
+```go
+str := "how do you do it"
+strSlice := strings.Split(str, "")
+letterMap := make(map[string]int)
+for _, v := range strSlice {
+    letterMap[v]++
+}
+fmt.Printf("%v\n", letterMap)
+```
+
+# 8. 函数
+
+## 1. 定义函数
+
+```go
+func name(param type)(resultType) {
+    // method implements
+}
+// 如果两个参数的类型一样，可以简写
+func addNum(a, b int) int {
+	return a + b
+}
+```
+
+## 2. 可变参数
+
+> 也是通过`...`表示，只不是加在了类型前边
+
+```go
+func numsSum(nums ...int) int {
+	sum := 0
+	for _, v := range nums {
+		sum += v
+	}
+	return sum
+}
+```
+
+## 3. 同时返回多个类型
+
+```go
+func calc(x,y int)(int,int,int,int) {
+    sum := x + y
+    sub := x - y 
+    multi := x * y
+    div := x / y
+    return sum, sub, multi, div
+}
+```
 
