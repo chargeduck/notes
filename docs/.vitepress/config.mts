@@ -11,7 +11,10 @@ export default withMermaid({
   markdown: {
     lineNumbers: true
   },
-
+  head: [
+    // Algolia 域名验证 Meta 标签（直接复制你截图里的内容）
+    ['meta', { name: 'algolia-site-verification', content: 'CF8FC57655ED0008' }]
+  ],
   mermaid: {
     // 配置参考： https://mermaid.js.org/config/setup/modules/mermaidAPI.html#mermaidapi-configuration-defaults
   },
@@ -391,27 +394,38 @@ export default withMermaid({
       level: [1, 2]
     },
     search: {
-      provider: 'local'
-      // options: {
-      //   appId: 'WREY2TJAEX',
-      //   apiKey: 'f9da2db9a163ef90f59b268823c3cb9f',
-      //   indexName: 'chargeDuck',
-      //   placeholder: '请输入关键词',
-      //   translations: {
-      //     button: {
-      //       buttonText: '搜索',
-      //       buttonAriaLabel: '搜索'
-      //     },
-      //     modal: {
-      //       searchBox: {
-      //         resetButtonTitle: '清除查询条件',
-      //         resetButtonAriaLabel: '清除查询条件',
-      //         cancelButtonText: '取消',
-      //         cancelButtonAriaLabel: '取消'
-      //       }
-      //     }
-      //   }
-      // }
+      provider: 'algolia',
+      options: {
+        appId: '0HXPSG76HI',
+        apiKey: 'cb3075b947232c05052a0ae4eabda6a3',
+        indexName: 'chargeduckNotes',
+        locales: {
+          root: {
+            placeholder: '搜索文档',
+            translations: {
+              button: {
+                buttonText: '搜索',
+                buttonAriaLabel: '搜索文档'
+              },
+              modal: {
+                searchBox: {
+                  resetButtonTitle: '清除',
+                  cancelButtonText: '取消'
+                },
+                startScreen: {
+                  recentSearchesTitle: '搜索历史',
+                  noRecentSearchesText: '暂无搜索记录'
+                },
+                footer: {
+                  selectText: '选择',
+                  navigateText: '切换',
+                  closeText: '关闭'
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 })

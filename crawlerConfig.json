@@ -1,0 +1,20 @@
+{
+  "index_name": "chargeduckNotes",
+  "start_urls": ["https://chargeduck.github.io/notes/"],
+  "rateLimit": 8,
+  "maxDepth": 10,
+  "selectors": {
+    "lvl0": ".vp-sidebar .active.item-0 a",
+    "lvl1": "h1",
+    "lvl2": "h2",
+    "lvl3": "h3",
+    "lvl4": "h4",
+    "content": ".vp-doc p, .vp-doc li"
+  },
+  "selectors_exclude": [
+    "aside",
+    ".footer",
+    ".pagination",
+    ".vp-nav-bar"
+  ]
+}
