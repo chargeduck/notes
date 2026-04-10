@@ -1,0 +1,34 @@
+name: Update Algolia Search
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Algolia Crawler
+        run: |
+          curl -X POST "https://crawler.algolia.com/api/1/crawlers" \
+            -u "${{ secrets.ALGOLIA_CRAWLER_USER_ID }}:${{ secrets.ALGOLIA_CRAWLER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "notes-docs",
+              "index_name": "chargeduckNotes",
+              "start_urls": ["https://chargeduck.github.io/notes/"],
+              "rate_limit": 8,
+              "max_depth": 10,
+              "selectors": {
+                "lvl0": ".vp-sidebar .active.item-0 a",
+                "lvl1": "h1",
+                "lvl2": "h2",
+                "lvl3": "h3",
+                "lvl4": "h4",
+                "content": ".vp-doc p,.vp-doc li"
+              },
+              "selectors_exclude": ["aside",".footer",".pagination"]
+            }'
