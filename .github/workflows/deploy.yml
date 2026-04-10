@@ -39,27 +39,3 @@ jobs:
           folder: docs/.vitepress/dist
           single-commit: true
           clean: true
-
-      # ==============================================
-      # 👇 下面是修复后的 Algolia 步骤，解决安装错误
-      # ==============================================
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10" # 用更兼容的 3.10 版本
-
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
-
-      - name: Install docsearch-scraper (from GitHub)
-        run: pip install git+https://github.com/algolia/docsearch-scraper.git
-
-      - name: Update Algolia Search Index
-        run: |
-          docsearch-scraper \
-            --config ./crawlerConfig.json \
-            --api-key "${{ secrets.ALGOLIA_WRITE_API_KEY }}" \
-            --app-id "${{ secrets.ALGOLIA_APP_ID }}"
-        env:
-          ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
-          ALGOLIA_WRITE_API_KEY: ${{ secrets.ALGOLIA_WRITE_API_KEY }}
