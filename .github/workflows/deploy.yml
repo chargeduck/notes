@@ -1,4 +1,3 @@
-
 name: Deploy VitePress site to Pages
 
 on:
@@ -7,7 +6,6 @@ on:
       - '*'
     branches:
       - master
-
   workflow_dispatch:
 
 jobs:
@@ -39,29 +37,22 @@ jobs:
         with:
           branch: gh-pages
           folder: docs/.vitepress/dist
-          # enable single-commit to reduce the repo size
           single-commit: true
           clean: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-#      - name: Sync to Gitee
-#        uses: wearerequired/git-mirror-action@v1.2.0
-#        env:
-#          SSH_PRIVATE_KEY: ${{ secrets.GITEE_RSA_PRIVATE_KEY }}
-#        with:
-#          # GitHub 仓库地址
-#          source-repo: git@github.com:chargeduck/notes.git
-#          # Gitee 仓库地址
-#          destination-repo: git@gitee.com:chargeduck/notes.git
-#
-#      - name: Build Gitee Pages
-#        uses: yanglbme/gitee-pages-action@main
-#        with:
-#          # 替换为你的 Gitee 用户名
-#          gitee-username: chargeduck
-#          # 注意在 Settings->Secrets 配置 GITEE_PASSWORD
-#          gitee-password: ${{ secrets.GITEE_PASSWORD }}
-#          # 注意替换为你的 Gitee 仓库，仓库名严格区分大小写，请准确填写，否则会出错
-#          gitee-repo: chargeduck/notes
-#          # 要部署的分支，默认是 master，若是其他分支，则需要指定（指定的分支必须存在）
-#          branch: gh-pages
+      - name: Install docsearch-scraper
+        run: pip install docsearch-scraper
 
+      - name: Update Algolia Search Index
+        run: |
+          docsearch-scraper \
+            --config ./crawlerConfig.json \
+            --api-key "${{ secrets.ALGOLIA_WRITE_API_KEY }}" \
+            --app-id "${{ secrets.ALGOLIA_APP_ID }}"
+        env:
+          ALGOLIA_APP_ID: ${{ secrets.ALGOLIA_APP_ID }}
+          ALGOLIA_WRITE_API_KEY: ${{ secrets.ALGOLIA_WRITE_API_KEY }}
