@@ -1,5 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?p=26)
+golang,还没开始学，等我看完php的 [it营golang视频教程 28/84](https://www.bilibili.com/video/BV1Rm421N7Jy?p=28)
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl/go1.24.6.windows-amd64.msi), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -786,6 +786,147 @@ func calc(x,y int)(int,int,int,int) {
     multi := x * y
     div := x / y
     return sum, sub, multi, div
+}
+```
+
+## 4. 函数类型
+
+> 可以通过type关键字定义一个函数类型，具体格式如下。这个语句定义了一个`calculation`类型,它是一种函数类型，接收两个int参数，返回一个int类型，<font color=red>有点类似于java的FunctionalInterface或者是接口</font>
+>
+> ```go
+> type calculation func (int, int) int
+> ```
+
+```go
+// 定义一个calc类型函数
+type calc func(int, int) int
+
+func add(a, b int) int {
+	return a + b
+}
+
+func sub(a, b int) int {
+	return a - b
+}
+
+
+func main() {
+	var c calc = add
+	fmt.Printf("c的类型是: %T\n", c)
+}
+```
+
+> 可以用来做回调函数，这样比较方便
+
+```go
+/**
+ * 计算两个数的结果
+ * @param a 第一个数
+ * @param b 第二个数
+ * @param cb 计算函数
+ */
+func calcR(a, b int, cb calc) int {
+	return cb(a, b)
+}
+func main() {
+    sum := calcR(1 , 2, add)
+	sub := calcR(1 , 2, sub)
+	fmt.Println(sum)
+	fmt.Println(sub)
+}
+```
+
+> 当然也可以写一个匿名函数
+
+```go
+mul := calcR(3, 4, func(x, y int) int {
+    return x * y
+})
+fmt.Println(mul)
+```
+
+## 5. 函数作为返回值
+
+```go
+func do(str string) calc {
+	switch str {
+		case "+":
+			return add
+		case "-":
+			return sub
+		case "*":
+			return func(x, y int) int {
+				return x * y
+			}
+		case "/":
+			return func(x, y int) int {
+				return x / y
+			}
+		case "%":
+			return func(x, y int) int {
+				return x % y
+			}
+		default:
+			return nil
+	}
+}
+```
+
+## 6. 匿名函数
+
+```go
+// 匿名自执行函数 通过后边的括号传值
+fun (x,y int) {
+    return x +y
+}(10,20)
+
+// 递归
+func factorial(n int) int {
+	if n <= 1 {
+		return 1 // 递归终止条件
+	}
+	return n * factorial(n-1) // 核心公式：n! = n * (n-1)!
+}
+```
+
+## 7. 闭包
+
+> 全局变量：常驻内存，污染全局
+>
+> 局部变量，不常驻内存，不污染全局，但是其他方法访问不到
+>
+> 闭包：常驻内存，其他函数能访问到还不会被污染
+>
+> 1、闭包是指有权访问另一个函数作用域中的变量的函数。
+> 2、创建闭包的常见的方式就是在一个函数内部创建另一个函数，通过另一个函数访问这个函数的局部变量
+>
+> **注意：由于闭包里作用域返回的局部变量资源不会被立刻销毁回收，所以可能会占用更多的内存。过度使用闭包会导致性能下降，建议在非常有必要的时候才使用闭包。**
+
+```go
+// 闭包的写法就是函数里嵌套另外一个函数 这个不管怎么调用都是返回11
+func adder1() func() int {
+    var i = 10
+    return func () int {
+        retutn i + 1
+    }
+}
+func adder2() func(y int) int {
+    var i = 10
+    return func () int {
+        i += y
+        retutn i
+    }
+}
+
+func main() {
+    var fn = adder1()
+    fmt.Println(fn()) //11
+    fmt.Println(fn()) //11
+    fmt.Println(fn()) //11
+    var fn2 = adder2()
+    fmt.Println(fn2(1)) //11
+    fmt.Println(fn2(2)) //13
+    fmt.Println(fn2(3)) //16  
 }
 ```
 
