@@ -930,3 +930,110 @@ func main() {
 }
 ```
 
+## 8. defer
+
+> Go语言中的defer语句会将其后面跟随的语句进行延迟处理。在defer归属的函数即将返回时，将延迟处理的语句按defer定义的逆序进行执行，也就是说，先被defer的语句最后被执行，最后被defer的语句，最先被执行。感觉用的不多，先不写了
+
+## 9. panic和recover
+
+> 使用panic抛出一个异常，recover来捕获异常，类似于try catch，recover只能放在defer中使用
+
+```go
+func fn1(x, y float64) float64 {
+	defer func() {
+		err := recover()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	if y == 0 {
+		panic("分母不能为0")
+	}
+	return x / y
+}
+```
+
+# 9. 日期类型
+
+## 1. time包
+
+```go
+timeObj := time.Now()
+fmt.Println(timeObj)
+fmt.Println(timeObj.Year())
+fmt.Println(timeObj.Month())
+fmt.Println(timeObj.Day())
+fmt.Println(timeObj.Hour())
+fmt.Println(timeObj.Minute())
+fmt.Println(timeObj.Second())
+fmt.Println(timeObj.Weekday())
+fmt.Println(timeObj.UnixMilli())
+```
+
+> 格式化输出日期,<font color=red>这太特立独行了bro 为啥不用`yyyy-MM-dd HH:mm:ss`</font>,`2006-01-02 03:04:05`这个日期就是go诞生的日子，
+
+| 格式化字符串 | 含义     |
+| ------------ | -------- |
+| 2006         | 年       |
+| 01           | 月       |
+| 02           | 日       |
+| 03           | 12小时制 |
+| 15           | 24小时制 |
+| 05           | 分       |
+| 06           | 秒       |
+| .000         | 毫秒     |
+
+```go
+timeObj.Format("2006-01-02 03:04:05")
+```
+
+> 日期字符串转换成时间戳
+
+```go
+timeStr := "2026-12-31 21.59.09.789"
+formatter := "2006-01-02 15.04.05.000"
+parseTime, _ := time.ParseInLocation(formatter, timeStr, time.Local)
+fmt.Printf("%v", parseTime.Unix())
+```
+
+## 2. 时间操作函数
+
+1. Add，制定时间添加时间
+
+```go
+// func (t Time) Add(d Duration) Time
+// 求一个小时后的时间
+timeObj := time.Now()
+timeObj = timeObj.Add(time.Hour)
+```
+
+2. Sub之类的，用的时候现查就行了
+
+## 3. 定时器
+
+1. 通过time.NewTicker创建定时器
+
+```go
+ticker := time.NewTicker(2 * time.Second)
+n := 0
+for i := range ticker.C {
+    fmt.Println(i)
+    n++
+    if n > 10 {
+        ticker.Stop()
+        return
+    }
+}
+```
+
+2. 通过time.Sleep来实践定时器
+
+```go
+for {
+    time.Sleep(time.Second)
+    fmt.Prinfln("每隔一秒执行一次任务")
+}
+```
+
+# 10. 指针
+
