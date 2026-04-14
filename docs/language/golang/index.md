@@ -1037,3 +1037,91 @@ for {
 
 # 10. 指针
 
+> 通过`%p`输出指针地址，`&name`获取指针地址，每一个变量都有自己的内存地址。
+
+```go
+a := 10
+fmt.Printf("a的值 %v, 类型 %T 指针地址 %p", a, a, &a)
+p := &a 
+// *p获取内存地址的值
+fmt.Println("内存地址 %p, 值 %v", p, *p)
+```
+
+> 通过new或者make来创建一个指针变量。
+>
+> 1. <font color=red>两者都是用来做内存分配的</font>
+> 2. <font color=red>make只能用于slice,map,以及channel的初始化，返回的还是这个三个引用类型本身</font>
+> 3. new用于类型的内存分配，并且内存对应的值为类型默认值，返回的是执行类型的指针
+
+```go
+// 分配空间
+var b = new(int)
+// 给b赋值
+*b = 100
+fmt.Printf("val:%v,type: %T pointerVal: %v\n", b, b, *b)
+
+```
+
+# 11. 结构体
+
+> Golang中没有**类**的概念，Golang中的结构体和其他语言中的类有点相似。和其他面向对象语言中的类相比，<font color=red>Golang中的结构体具有更高的扩展性和灵活性。</font>
+>
+> Golang中的基础数据类型可以表示一些事物的基本属性，但是当我们想表达一个事物的全部或部分属性时，这时候再用单一的基本数据类型就无法满足需求了，Golang提供了一种自定义数据类型，可以封装多个基本数据类型，这种数据类型叫结构体，英文名称struct。也就是我们可以通过struct来定义自己的类型了。
+
+```go
+// 首字母大写表示是公有的，小写是私有的
+type User struct {
+	Name string
+	Age  int
+	Sex  string
+	Mail string
+	Address string
+	Phone string
+	Password string
+}
+```
+
+> 关于初始化呢一共有四种方式
+
+1. `var name Type`
+
+```go
+var user User
+user.Mail = "10001@qq.com"
+```
+
+2. 通过new创建
+
+```go
+user := new(User)
+user.Name = "张三"
+```
+
+3. 通过指针创建，三种方式都是可以的
+
+```go
+user := &User{}
+user.Sex = "男"
+
+user2 := &User{
+    Name: "王麻子",
+    Age: 19
+}
+
+user3 := &User{
+    "王麻子",
+    18,
+    "男",
+    "10010@qq.com"
+}
+```
+
+4. 通过键值对创建
+
+```go
+// 通过键值对初始化需要加逗号
+user := User{
+    Name: "李四",
+}
+```
+
