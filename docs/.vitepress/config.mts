@@ -361,7 +361,15 @@ export default withMermaid({
           ]
         }
       ],
-
+      '/error' :[
+        {
+          text: '错误处理',
+          collapsed: false,
+          items: [
+            {text: '错误处理', link: '/error/index'},
+          ]
+        }
+      ],
       // 前端
       '/frontend/': [
         {
@@ -374,6 +382,8 @@ export default withMermaid({
             {text: 'CSS 常见问题', link: '/frontend/utils/cssQa'},
             {text: 'Electron 仿QQ音乐', link: '/frontend/electron/index'},
             {text: 'Echarts', link: '/frontend/echarts/index'},
+            {text: 'VitePress', link: '/frontend/vitepress/vitepress'},
+            {text: '工具类', link: '/frontend/utils/index'},
           ]
         }
       ],
