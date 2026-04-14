@@ -1,4 +1,5 @@
-::: tips 前端积攒下来的工具类
+::: tip
+前端积攒下来的工具类
 :::
 
 1. [corsConfig](./corsConfig.md)

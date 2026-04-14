@@ -7,29 +7,36 @@ on:
     branches:
       - master
   workflow_dispatch:
-
+# 新增支持Node24
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   deploy-and-sync:
     runs-on: ubuntu-latest
+    # 新增支持Node24
+    permissions:
+      contents: write
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
         with:
           ref: 'master'
+          # 新增支持Node24
+          fetch-depth: 0
 
       - name: Install yarn
         run: corepack enable
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4.4.0
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Build Site
-        run: npm run docs:build
+        run: yarn docs:build
 
       # 将文档产物提交到gh-pages分支
       - name: Deploy for Github 🚀
