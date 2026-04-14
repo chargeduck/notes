@@ -1,5 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程](https://www.bilibili.com/video/BV1Rm421N7Jy?p=26)
+golang,还没开始学，等我看完php的 [it营golang视频教程 28/84](https://www.bilibili.com/video/BV1Rm421N7Jy?p=28)
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl/go1.24.6.windows-amd64.msi), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -788,4 +788,252 @@ func calc(x,y int)(int,int,int,int) {
     return sum, sub, multi, div
 }
 ```
+
+## 4. 函数类型
+
+> 可以通过type关键字定义一个函数类型，具体格式如下。这个语句定义了一个`calculation`类型,它是一种函数类型，接收两个int参数，返回一个int类型，<font color=red>有点类似于java的FunctionalInterface或者是接口</font>
+>
+> ```go
+> type calculation func (int, int) int
+> ```
+
+```go
+// 定义一个calc类型函数
+type calc func(int, int) int
+
+func add(a, b int) int {
+	return a + b
+}
+
+func sub(a, b int) int {
+	return a - b
+}
+
+
+func main() {
+	var c calc = add
+	fmt.Printf("c的类型是: %T\n", c)
+}
+```
+
+> 可以用来做回调函数，这样比较方便
+
+```go
+/**
+ * 计算两个数的结果
+ * @param a 第一个数
+ * @param b 第二个数
+ * @param cb 计算函数
+ */
+func calcR(a, b int, cb calc) int {
+	return cb(a, b)
+}
+func main() {
+    sum := calcR(1 , 2, add)
+	sub := calcR(1 , 2, sub)
+	fmt.Println(sum)
+	fmt.Println(sub)
+}
+```
+
+> 当然也可以写一个匿名函数
+
+```go
+mul := calcR(3, 4, func(x, y int) int {
+    return x * y
+})
+fmt.Println(mul)
+```
+
+## 5. 函数作为返回值
+
+```go
+func do(str string) calc {
+	switch str {
+		case "+":
+			return add
+		case "-":
+			return sub
+		case "*":
+			return func(x, y int) int {
+				return x * y
+			}
+		case "/":
+			return func(x, y int) int {
+				return x / y
+			}
+		case "%":
+			return func(x, y int) int {
+				return x % y
+			}
+		default:
+			return nil
+	}
+}
+```
+
+## 6. 匿名函数
+
+```go
+// 匿名自执行函数 通过后边的括号传值
+fun (x,y int) {
+    return x +y
+}(10,20)
+
+// 递归
+func factorial(n int) int {
+	if n <= 1 {
+		return 1 // 递归终止条件
+	}
+	return n * factorial(n-1) // 核心公式：n! = n * (n-1)!
+}
+```
+
+## 7. 闭包
+
+> 全局变量：常驻内存，污染全局
+>
+> 局部变量，不常驻内存，不污染全局，但是其他方法访问不到
+>
+> 闭包：常驻内存，其他函数能访问到还不会被污染
+>
+> 1、闭包是指有权访问另一个函数作用域中的变量的函数。
+> 2、创建闭包的常见的方式就是在一个函数内部创建另一个函数，通过另一个函数访问这个函数的局部变量
+>
+> **注意：由于闭包里作用域返回的局部变量资源不会被立刻销毁回收，所以可能会占用更多的内存。过度使用闭包会导致性能下降，建议在非常有必要的时候才使用闭包。**
+
+```go
+// 闭包的写法就是函数里嵌套另外一个函数 这个不管怎么调用都是返回11
+func adder1() func() int {
+    var i = 10
+    return func () int {
+        retutn i + 1
+    }
+}
+func adder2() func(y int) int {
+    var i = 10
+    return func () int {
+        i += y
+        retutn i
+    }
+}
+
+func main() {
+    var fn = adder1()
+    fmt.Println(fn()) //11
+    fmt.Println(fn()) //11
+    fmt.Println(fn()) //11
+    var fn2 = adder2()
+    fmt.Println(fn2(1)) //11
+    fmt.Println(fn2(2)) //13
+    fmt.Println(fn2(3)) //16  
+}
+```
+
+## 8. defer
+
+> Go语言中的defer语句会将其后面跟随的语句进行延迟处理。在defer归属的函数即将返回时，将延迟处理的语句按defer定义的逆序进行执行，也就是说，先被defer的语句最后被执行，最后被defer的语句，最先被执行。感觉用的不多，先不写了
+
+## 9. panic和recover
+
+> 使用panic抛出一个异常，recover来捕获异常，类似于try catch，recover只能放在defer中使用
+
+```go
+func fn1(x, y float64) float64 {
+	defer func() {
+		err := recover()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	if y == 0 {
+		panic("分母不能为0")
+	}
+	return x / y
+}
+```
+
+# 9. 日期类型
+
+## 1. time包
+
+```go
+timeObj := time.Now()
+fmt.Println(timeObj)
+fmt.Println(timeObj.Year())
+fmt.Println(timeObj.Month())
+fmt.Println(timeObj.Day())
+fmt.Println(timeObj.Hour())
+fmt.Println(timeObj.Minute())
+fmt.Println(timeObj.Second())
+fmt.Println(timeObj.Weekday())
+fmt.Println(timeObj.UnixMilli())
+```
+
+> 格式化输出日期,<font color=red>这太特立独行了bro 为啥不用`yyyy-MM-dd HH:mm:ss`</font>,`2006-01-02 03:04:05`这个日期就是go诞生的日子，
+
+| 格式化字符串 | 含义     |
+| ------------ | -------- |
+| 2006         | 年       |
+| 01           | 月       |
+| 02           | 日       |
+| 03           | 12小时制 |
+| 15           | 24小时制 |
+| 05           | 分       |
+| 06           | 秒       |
+| .000         | 毫秒     |
+
+```go
+timeObj.Format("2006-01-02 03:04:05")
+```
+
+> 日期字符串转换成时间戳
+
+```go
+timeStr := "2026-12-31 21.59.09.789"
+formatter := "2006-01-02 15.04.05.000"
+parseTime, _ := time.ParseInLocation(formatter, timeStr, time.Local)
+fmt.Printf("%v", parseTime.Unix())
+```
+
+## 2. 时间操作函数
+
+1. Add，制定时间添加时间
+
+```go
+// func (t Time) Add(d Duration) Time
+// 求一个小时后的时间
+timeObj := time.Now()
+timeObj = timeObj.Add(time.Hour)
+```
+
+2. Sub之类的，用的时候现查就行了
+
+## 3. 定时器
+
+1. 通过time.NewTicker创建定时器
+
+```go
+ticker := time.NewTicker(2 * time.Second)
+n := 0
+for i := range ticker.C {
+    fmt.Println(i)
+    n++
+    if n > 10 {
+        ticker.Stop()
+        return
+    }
+}
+```
+
+2. 通过time.Sleep来实践定时器
+
+```go
+for {
+    time.Sleep(time.Second)
+    fmt.Prinfln("每隔一秒执行一次任务")
+}
+```
+
+# 10. 指针
 
