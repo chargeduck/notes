@@ -1,5 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程 28/84](https://www.bilibili.com/video/BV1Rm421N7Jy?p=28)
+golang,还没开始学，等我看完php的 [it营golang视频教程 35/84]((https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=35)
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl/go1.24.6.windows-amd64.msi), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -1064,6 +1064,8 @@ fmt.Printf("val:%v,type: %T pointerVal: %v\n", b, b, *b)
 
 # 11. 结构体
 
+## 1. 定义结构体
+
 > Golang中没有**类**的概念，Golang中的结构体和其他语言中的类有点相似。和其他面向对象语言中的类相比，<font color=red>Golang中的结构体具有更高的扩展性和灵活性。</font>
 >
 > Golang中的基础数据类型可以表示一些事物的基本属性，但是当我们想表达一个事物的全部或部分属性时，这时候再用单一的基本数据类型就无法满足需求了，Golang提供了一种自定义数据类型，可以封装多个基本数据类型，这种数据类型叫结构体，英文名称struct。也就是我们可以通过struct来定义自己的类型了。
@@ -1124,4 +1126,184 @@ user := User{
     Name: "李四",
 }
 ```
+
+## 2. 定义结构体方法
+
+> 与java不同，这个是写在外边的，有点像是kotlin的DSL
+>
+> ```go
+> // 结构类似于这样
+> func (t Type)funcName() returnType{}
+> ```
+>
+> **只要修改结构体（Set）：必须用指针 \*p**
+>
+> **只读（Get）：用值或指针都行 **
+>
+> **同一个结构体，统一用一种就很规范**
+
+```go
+type Person struct {
+	Name string
+	Age  int
+	Sex  string
+}
+
+func (p Person) ToString() string {
+	return "Name: " + p.Name + ", Age: " + strconv.Itoa(p.Age) + ", Sex: " + p.Sex
+}
+
+/**
+ * 需要需要类型的值的时候需要用 指针类型接收
+ * 设置姓名和年龄
+ * @param name 姓名
+ * @param age 年龄
+ */
+func (p *Person) SetName(name string, age int) {
+	p.Name = name
+	p.Age = age
+}
+
+
+func main() {
+	p := Person{
+		Name: "张三",
+		Age:  18,
+		Sex:  "男",
+	}
+	println(p.ToString())
+}
+```
+
+> 下边是kotlin的DSL写法，两者的都是保证结构体不臃肿，可以给任意的类添加方法。
+
+```kotlin
+data class Person(
+	val name: String,
+    val age: Int,
+    val sex: String
+)
+
+func Person.ToString(): String{
+    return "Name:$name,Age:$age,Sex:$sex"
+}
+```
+
+## 3. 匿名字段
+
+> 结构体允许成员字段在声明的时候没有字段名只有类型，这种就是匿名字段
+
+```go
+// 每一个类型只能有一个
+type UserInfo struct {
+	string
+	int
+}
+u := UserInfo{
+    "张三",
+    20,
+}
+println(u.string, u.int)
+```
+
+> 如果是嵌套结构体，切内层结构体是一个匿名字段，就会有字段提升
+
+```go
+type Person struct{
+    Address
+}
+Type Address struct {
+    Addr string
+}
+p := Person{}
+p.Addr = "青岛市"
+```
+
+## 4. 通过匿名结构体实现组合
+
+> 在一个结构体中添加另外一个匿名结构体，可以借用匿名结构体的方法，也称之为组合，在Go中没有继承和多态
+
+```go
+type Animal struct {
+}
+
+type Cat struct {
+	Name string
+	Animal
+}
+
+func (c Cat) Say() {
+	println("我是" + c.Name)
+}
+
+func (a Animal) Eat(food string) {
+	println("我正在吃" + food)
+}
+
+func main() {
+	c := Cat{
+		Name: "七月一",
+	}
+	c.Say()
+	c.Eat("鱼")
+}
+
+```
+
+# 12. Json序列化，反序列化
+
+> 通过json包类实现序列化和反序列化
+
+## 1. 序列化
+
+```go
+type Student struct {
+	Name  string
+	Age   int
+	Sex   string
+	Class string
+}
+
+func main() {
+	s1 := Student{
+		"李四",
+		16,
+		"男",
+		"理科33班",
+	}
+	// 打印结构体的字段值
+	fmt.Printf("%#v\n", s1)
+	// 将结构体转换为JSON字符串
+	// 这里返回的是一个byte类型的切片，需要用string函数转换为字符串
+	jsonStr, _ := json.Marshal(s1)
+	fmt.Printf("%s\n", string(jsonStr))
+}
+```
+
+## 2. 反序列化
+
+```go
+str := `{"Name":"李四","Age":16,"Sex":"男","Class":"理科33班"}`
+var s2 Student
+err := json.Unmarshal([]byte(str), &s2)
+if err != nil {
+    return
+}
+```
+
+## 3. 结构体标签
+
+> 可以指定序列化反序列化的字段名字，
+
+```go
+type Student struct {
+    Name  string `json:"name"`
+	Age   int
+	Sex   string
+	Class string
+}
+// 这个序列化之后Name就会变成name
+```
+
+
 
