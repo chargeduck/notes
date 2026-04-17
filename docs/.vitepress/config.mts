@@ -408,7 +408,7 @@ export default withMermaid({
       options: {
         appId: '0HXPSG76HI',
         apiKey: 'cb3075b947232c05052a0ae4eabda6a3',
-        indexName: 'chargeduckNotes',
+        indexName: 'notesCrawler',
         locales: {
           root: {
             placeholder: '搜索文档',
