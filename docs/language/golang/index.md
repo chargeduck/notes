@@ -1,8 +1,8 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程 35/84]((https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=35)
+golang,还没开始学，等我看完php的 [it营golang视频教程 35/84](https://www.bilibili.com/video/BV1Rm421N7Jy/?spm_id_from=333.1391.0.0&p=38&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b)
 # 1. 下载安装及简单示例
 
-> [下载地址](https://go.dev/dl/go1.24.6.windows-amd64.msi), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
+> [下载地址](https://go.dev/dl), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
 `go env`查看当前的go 环境
 > 配置完环境之后可以写下列的示例代码看看是否能够运转成功
 
@@ -1305,5 +1305,217 @@ type Student struct {
 // 这个序列化之后Name就会变成name
 ```
 
+# 13. go mod
 
+## 1. 包的定义
+
+> 包(`package`)是多个Go源码的集合，是一种高级的代码复用方案，Go语言为我们提供了很多内置包，如 `fmt、strconv、strings、sort、errors、time、encoding/json、os、io `等。
+> **Golang中的包可以分为三种:1、系统内置包 2、自定义包3、第三方包**
+> **系统内置包:**Golang语言给我们提供的内置包，引入后可以直接使用，如fmt、strconv、strings、sort、errors、time、 encoding/json、 os、io 等。
+> **自定义包:**开发者自己写的包
+> **第三方包:**属于自定义包的一种，需要下载安装到本地后才可以使用，如前面使用的的`github.com/shopspring/decimal`包解决float 精度丢失问题。
+
+## 2. 包管理工具 go mod
+
+> 在Golang1.11版本之前如果我们要自定义包的话必须把项目放在GOPATH目录。Go1.11版本之后无需手动配置环境变量，使用`go mod` 管理项目，也不需要非得把项目放到GOPATH指定目录下，你可以在你磁盘的任何位置新建一个项目，Go1.13以后可以彻底不要GOPATH了。
+
+### 1. 初始化项目
+
+> 实际项目开发中我们首先要在我们项目目录中用gomod命令生成一个go.mod文件管理我们项目的依赖。
+
+```shell
+go mod init go_project_demo
+```
+
+```text
+myProject
+│  .gitignore
+│  go.mod
+│  main.go
+│      
+└─calc
+        calc.go
+```
+
+### 2. 导入包
+
+#### 1. 正常导包
+
+```go
+package main
+
+// 引入自己的包
+import "go_project_demo/calc"
+
+func main() {
+	sum := calc.Add(1, 2)
+	sub := calc.Sub(1, 2)
+	println(sum)
+	println(sub)
+}
+```
+
+#### 2. 包别名
+
+>  如果觉得包名太长了，可以自定义别名
+
+```go
+import (
+	cc "demo/calc"
+)
+func main() {
+    cc.Add(1,2)
+}
+```
+
+#### 3. 匿名导包
+
+> 如果导入包之后不使用，可以用`_`设置别名
+
+```go
+import _ "demo/calc"
+```
+
+### 3. init()函数
+
+> Go语言程序执行时导入包语句会自动触发包内部`init()`函数的调用。需要注意的是`init()`函数没有参数也没有返回值。`init()`函数在程序运行时自动被调用执行，不能在代码中主动调用它。
+> 包初始化执行的顺序如下图所示:
+
+```go
+package main
+import "fmt"
+var x int8 = 10
+const pi = 3.14
+func init() {
+    fmt.Println(x)
+}
+func main() {
+    fmt.Println("Hello")
+}
+```
+
+
+
+```mermaid
+graph TD
+    A[全局声明] --> B[init函数]
+    B --> C[main函数]
+```
+
+> 如果有多个引入的话，初始化是反着来的
+
+```mermaid
+graph LR
+subgraph init顺序
+Ci[C.init] --> Bi[B.init]
+Bi --> Ai[A.init]
+Ai -->mi[main.init]
+end
+subgraph 导入包的顺序
+m[main] --import--> A
+A --import--> B
+B --import--> C
+end
+
+
+```
+
+##  3. 使用第三方包
+
+> 可以在[http://pkg.go.dev/](http://pkg.go.dev)中查看常见的golang的第三方包
+
+1. 初始化项目
+
+```shell
+go mod init otherDdemo
+```
+
+2. 引入其他项目第三方库
+
+```shell
+import "github.com/shopspring/decimal"
+import "github.com/tidwall/gjson"
+```
+
+3. 下载依赖包
+
+```shell
+go mod tidy
+```
+
+# 14. 接口
+
+## 1. 定义接口
+
+> 接口就是一种行为的抽象，用来定义行为规范，只进行定义不实现，由具体的对象来实现。
+
+```go
+type UsbInterface interface {
+	Connect(string, string) (net.Conn, error)
+	Close() error
+	Transform(data []byte) ([]byte, error)
+}
+```
+
+```go
+type UsbMouse struct {
+	Name string
+	Mac  string
+}
+
+func (usb *UsbMouse) Connect(mac string, ip string) (net.Conn, error) {
+	fmt.Printf("Connecting to %s at %s:%s\n", usb.Name, ip, usb.Mac)
+	return net.Dial("udp", ip+":"+usb.Mac)
+}
+func (usb *UsbMouse) Close() error {
+	fmt.Printf("Closing connection to %s\n", usb.Name)
+	return nil
+}
+func (usb *UsbMouse) Transform(data []byte) ([]byte, error) {
+	fmt.Printf("%sTransforming data to %s\n", usb.Name, data)
+	return data, nil
+}
+```
+
+## 2. 空接口
+
+> 在go中空接口可以不定义任何方法，<font color=blue>这样也就没有任何约束，因此任何类型的变量都可以实现空接口，空接口也可以用来表示任意类型</font>，类似于java中的Object 和Ts中的Any类型
+
+```go
+var map = make(map[string]interface{})
+map["username"]="张三"
+map["age"]=18
+// 从golang1.18之后可以用any代替空接口
+vap map2 = make(map[string]any)
+```
+
+## 3. 类型断言 
+
+> 一个接口的值(简称接口值)是由一个具体类型和具体类型的值两部分组成的。这两部分分别称为接口的动态类型和动态值。
+> 如果我们想要判断空接口中值的类型，那么这个时候就可以使用类型断言，其语法格式:
+>
+> <font color=red>类似于instanceof</font>
+
+```go
+// x表示类型为interface{}或any的变量 
+// T表示断言x可能得类型 也就是泛型
+x.(T)
+
+var a any
+a = "123"
+val, ok = a.(string)
+if ok {
+    println("a是string类型，值是 %s",a)
+} else {
+    println("断言失败")
+}
+```
+
+```java
+// Java 16以后得instanceof 就和这个类型断言很类似了
+Object obj = "Hello";
+if (obj instanceof String str) {
+    System.out.println("str的值是 " + str)
+}
+```
 
