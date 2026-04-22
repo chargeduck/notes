@@ -1,5 +1,5 @@
 >
-golang,还没开始学，等我看完php的 [it营golang视频教程 35/84](https://www.bilibili.com/video/BV1Rm421N7Jy/?spm_id_from=333.1391.0.0&p=38&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b)
+golang,还没开始学，等我看完php的 [it营golang视频教程 42/84](https://www.bilibili.com/video/BV1Rm421N7Jy/?spm_id_from=333.1391.0.0&p=42&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b)
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -1518,4 +1518,220 @@ if (obj instanceof String str) {
     System.out.println("str的值是 " + str)
 }
 ```
+
+> 在 switch case里可以用`x.(type)`获取类型,**<font color=red>只能在switch case中用</font>**
+
+```go
+func MyTypeOf(a any) string {
+	switch a.(type) {
+	case UsbInterface:
+		return "UsbInterface"
+	case *UsbMouse:
+		return "UsbMouse"
+	case int:
+		return "int"
+	default:
+		return "Unknown"
+	}
+}
+```
+
+##  4. 结构体值接收者和指针接收者实现接口的区别
+
+1. 值接收者
+
+> 如果结构体中的方法是值接收者，那么实例化后的结构体值类型和结构体指针类型都可以赋值给接口变量
+
+```go
+type UsbInterface interface{
+    Start()
+    Stop()
+}
+type Phone struct{
+    Name string
+}
+func (p Phone) Start() {
+    println(p.Name, "启动")
+}
+func main() {
+    p1 := Phone{
+        "小米手机"
+    }
+    p1.Start()
+    p3 := &Phone{
+        Name: "苹果手机",
+    }
+    p3.Start()
+}
+```
+
+2. 指针接收者
+
+```go
+func (p *Phone) Stop() {
+    
+}
+// 这里就只能p3.Stop()了
+// p1 会提示Phone not implements UseInterface has poniter receiver
+p3.Stop()
+```
+
+## 5. 接口嵌套
+
+```go
+type A interface{}
+type B interface{}
+
+type AB interface{
+    A,
+    B
+}
+```
+
+# 15. goroutine
+
+## 1. 并行和并发
+
+> 通过goroutine结合 channel可以实现并行和并发
+>
+> 并发: 多个线程同时竞争一个位置，竞争到的才可以执行，每一个时间段只有一个线程在执行。
+> 并行: 多个线程可以同时执行，每一个时间段，可以有多个线程同时执行。
+>
+> 通俗的讲多线程程序在单核CPU上面运行就是并发，多线程程序在多核CUP上运行就是并行，如果线程数大于CPU核数，则多线程程序在多个CPU上面运行既有并行又有并发
+
+**并发的特点**
+
+1. 多个任务作用在一个CPU上面
+2. 同一时间点只能有一个任务执行
+3. 同一时间段内执行多个任务
+
+**并行的特点**
+
+1. 多个任务作用在多个CPU核心上
+2. 同一时刻执行多个任务
+
+```mermaid
+graph LR
+subgraph 并发  
+C1[单核CPU] --> P1[任务1 线程1]
+C1 --> P2[任务2 线程2]
+C1 --> P3[任务3 线程3]
+end
+subgraph 并行
+C2[核心2] --> P4[任务1 线程1]
+C3[核心3] --> P5[任务2 线程2]
+C4[核心4] --> P6[任务3 线程3]
+end
+```
+
+## 2. 协程 goroutine简介
+
+> golang中的主线程可以起多个协程，来实现并行或者并发
+>
+> **协程**: 可以理解为用户级线程，这是对内核透明的，也就是系统并不知道有协程的存在，是完全由用户自己的程序进行调度的。Golang的一大特色就是从语言层面原生支持协程，在函数或者方法前面加 go关键字就可创建一个协程。可以说Golang中的协程就是goroutine 。
+
+```mermaid
+graph LR
+MT[Go主线程] --> gr1[协程1]
+MT --> gr2[协程2]
+MT --> gr3[协程3]
+```
+
+> **多协程和多线程**: Golang每个goroutine(协程)默认占用内存远比Java、C的线程少。OS线程(操作系统线程)一般都有固定的栈内存(通常为2MB左右),一个goroutine(协程)占用内存非常小，只有2KB左右，多协程goroutine 切换调度开销方面远比线程要少。这也是为什么越来越多的大公司使用Golang的原因之一。
+
+下边是一段测试代码
+
+> 在主线程(可以理解成进程)中，开启一个goroutine，该协程每隔 50毫秒秒输出 "你好golang”
+> 在主线程中也每隔50毫秒输出"你好golang”，输出10次后，退出程序，要求主线程和
+> goroutine同时执行。
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+// 在主线程(可以理解成进程)中，开启一个goroutine，该协程每隔50毫秒秒输出
+// 在主线程中也每隔一秒输出"你好golang"，输出10次退出程序
+// 输出10次后，退出程序1要求主线程和goroutine同时执行
+func main() {
+	// 开启一个协程
+	go test()
+	for i := range 10 {
+		fmt.Println("main() 你好golang", i)
+		time.Sleep(50 * time.Millisecond)
+	}
+
+}
+
+func test() {
+	for i := range 10 {
+		fmt.Println("test() 你好golang", i)
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+```
+
+> 当前的代码有一个问题，主线程执行结束之后不会等待协程的代码执行的，所以就需要用到`sync.WatiGroup`函数了
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+var wg sync.WaitGroup
+
+// 在主线程(可以理解成进程)中，开启一个goroutine，该协程每隔50毫秒秒输出
+// 在主线程中也每隔一秒输出"你好golang"，输出10次退出程序
+// 输出10次后，退出程序1要求主线程和goroutine同时执行
+func main() {
+	wg.Add(2) // 协程计数器加一
+	// 开启一个协程
+	go test()
+	go test2()
+	for i := range 10 {
+		fmt.Println("main() 你好golang", i)
+		time.Sleep(10 * time.Millisecond)
+	}
+	wg.Wait()
+	fmt.Println("main() 退出程序")
+
+}
+
+func test() {
+	for i := range 10 {
+		fmt.Println("test() 你好golang", i)
+		time.Sleep(50 * time.Millisecond)
+	}
+	wg.Done() // 协程计数器减一
+}
+
+func test2() {
+	for i := range 100 {
+		fmt.Println("test2() 你好golang", i)
+		time.Sleep(15 * time.Millisecond)
+	}
+	wg.Done() // 协程计数器减一
+}
+
+```
+
+**设置运行时占用的CPU数量**
+
+```go
+func main() {
+	cpuNum := runtime.NumCPU()
+	fmt.Printf("CPU number: %d\n", cpuNum)
+	usedCpuNum := runtime.GOMAXPROCS(cpuNum - 1)
+	fmt.Printf("Can Used CPU number: %d\n", runtime.GOMAXPROCS(0))
+}
+```
+
+
 
