@@ -1733,5 +1733,105 @@ func main() {
 }
 ```
 
+```go
+package main
 
+import (
+	"fmt"
+	"math"
+	"sync"
+	"time"
+)
 
+func main() {
+	start := time.Now().UnixMilli()
+	num := 10_000_000
+	primeByFor(num)
+	end := time.Now().UnixMilli()
+	fmt.Println("primeByFor cost:", end-start)
+
+	start = time.Now().UnixMilli()
+	primeByGoroutine(num, 16)
+	end = time.Now().UnixMilli()
+	fmt.Println("primeByGoroutine cost:", end-start)
+}
+
+// goroutine 实现质数筛选
+// @param num 要筛选的数
+// @param chN 通道数量
+func primeByGoroutine(num, chN int) {
+	if num < 2 {
+		fmt.Println("num must be greater than 2")
+		return
+	}
+	var wg sync.WaitGroup
+	wg.Add(chN)
+	step := num / chN
+	for i := 0; i < chN; i++ {
+		start := i*step + 1
+		end := (i + 1) * step
+
+		if i == chN-1 {
+			end = num
+		}
+		go isPrime(start, end, &wg)
+	}
+	wg.Wait()
+
+}
+
+func isPrime(start, end int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for n := start; n <= end; n++ {
+		sqrtN := int(math.Sqrt(float64(n)))
+		for i := 2; i <= sqrtN; i++ {
+			if n%i == 0 {
+				break
+			}
+		}
+	}
+}
+// for 循环实现质数筛选
+func primeByFor(num int) {
+	if num < 2 {
+		return
+	}
+	for i := 2; i <= num; i++ {
+		sqrtI := int(math.Sqrt(float64(i)))
+		for j := 2; j <= sqrtI; j++ {
+			if i%j == 0 {
+				break
+			}
+		}
+	}
+}
+
+```
+
+> 协程的写法就是有一个固定模板的
+
+```go
+// 1. 创建一个wg
+var wg sync.WaitGroup
+func main() {
+    // 2. 多个协程就添加多少个
+	wg.Add(num)
+    // 3. 通过go关键字开启协程
+    go test()
+    // 5. 等待协程完成
+    wg.Wait()
+}
+
+// 4. 在协程的方法里执行完成后-1
+func test() {
+    // todo 业务逻辑
+    // defer关键字保证一定会-1
+    defer wg.Done()
+}
+```
+
+## 3. Channel管道
+
+> 管道是Go语言在语言级别上提供的goroutine间的通讯方式，我们可以使用channel在多个goroutine之间传递消息。如果说 goroutine是Go程序并发的执行体，channel就是它们之间的连接。**channel是可以让一个goroutine发送特定值到另一个goroutine 的通信机制。**
+> Go语言的并发模型是CSP(Communicating Sequential Processes)，提倡**通过通信共享内存而不是通过共享内存而实现通信。**
+> Go语言中的管道(channeI)是一种特殊的类型。管道像一个传送带或者队列，总是遵**循先入先出(First In First Out**)的规则，保证收发数据的顺序。每一个管道都是一个具体类型的导管，也就是声明channel 的时候需要为其指定元素类型。
