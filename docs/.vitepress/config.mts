@@ -8,6 +8,7 @@ export default withMermaid({
   title: 'notes',
   description: '后端仔的学习笔记',
   vite: {},
+  lastUpdated: true,
   markdown: {
     lineNumbers: true
   },
@@ -22,6 +23,18 @@ export default withMermaid({
     class: 'mermaid my-class'
   },
   themeConfig: {
+    lastUpdated: {
+      text: '最后更新于',
+      formatTimestamp: (timestamp) => {
+        return new Date(timestamp).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }
+    },
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       {text: '主页', link: '/'},

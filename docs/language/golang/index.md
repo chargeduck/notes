@@ -1,5 +1,5 @@
->
-golang,还没开始学，等我看完php的 [it营golang视频教程 42/84](https://www.bilibili.com/video/BV1Rm421N7Jy/?spm_id_from=333.1391.0.0&p=42&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b)
+>golang,还没开始学，等我看完php的 [it营golang视频教程 42/84](https://www.bilibili.com/video/BV1Rm421N7Jy/?spm_id_from=333.1391.0.0&p=42&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b)
+
 # 1. 下载安装及简单示例
 
 > [下载地址](https://go.dev/dl), 安装完成之后可以通过`go version` 查看环境是否安装成功，也可以通过
@@ -1835,3 +1835,140 @@ func test() {
 > 管道是Go语言在语言级别上提供的goroutine间的通讯方式，我们可以使用channel在多个goroutine之间传递消息。如果说 goroutine是Go程序并发的执行体，channel就是它们之间的连接。**channel是可以让一个goroutine发送特定值到另一个goroutine 的通信机制。**
 > Go语言的并发模型是CSP(Communicating Sequential Processes)，提倡**通过通信共享内存而不是通过共享内存而实现通信。**
 > Go语言中的管道(channeI)是一种特殊的类型。管道像一个传送带或者队列，总是遵**循先入先出(First In First Out**)的规则，保证收发数据的顺序。每一个管道都是一个具体类型的导管，也就是声明channel 的时候需要为其指定元素类型。
+
+### 1. channel类型介绍
+
+> channel是一种引用类型，声明管道类型的格式如下
+
+```go
+// var 变量名 chan 元素类型
+var ch1 chan int
+var ch2 chan bool
+var ch3 chan []int
+```
+
+### 2. 创建channel
+
+> 声明的管道后需要使用make函数初始化之后才能够使用
+
+```go
+//make(chan 元素类型, 容量)
+// 常见一个能存储10个int类型数据的管道
+ch1 := make(chan int, 10)
+ch2 := make(chan float64, 10)
+```
+
+### 3. channel操作
+
+> 管道有`发送(send)`、`接收(receive)`和`关闭(close)`三种操作，发送和接收都是用的 `<-`符号
+
+1. 首先定义一个管道
+
+```go
+ch := make(chan int, 3)
+```
+
+2. 将数据发送到管道里
+
+```go
+ch <- 10
+```
+
+3. 接收数据
+
+```go
+x := <- ch
+```
+
+4. 关闭管道
+
+```go
+close(ch)
+```
+
+### 4. 管道阻塞
+
+1. 无缓冲的管道
+
+> 如果创建管道的时候没有制定容量，那么这个管道就是无缓冲的管道。
+>
+> 这种情况发送和接收必须同时准备好，否则就是阻塞
+
+```go
+ch := make(chan int)
+ch <- 10
+println("发送成功")
+```
+
+> 上边的代码能够通过编译，但是执行的时候会出现下边的错误。
+
+```shell
+fatal error: all goroutines are asleep - deadlock!
+
+goroutine 1 [chan send]:
+main.main()
+```
+
+2. 有缓冲的管道
+
+> 初始化的时候准备好容量即可
+
+```go
+ch := make(chan int, 10)
+```
+
+### 5. 管道的遍历
+
+> **<font color=blue>在 range管道之前，这个管道必须被关闭了，否则会报错，但是通过for循环不需要提前关闭。</font>**
+
+```go
+// 1. 定义一个通道
+ch := make(chan int, 3)
+// 2. 向通道中写数据
+ch <- 1
+ch <- 2
+ch <- 3
+// 3. 关闭通道
+close(ch)
+// 管道是没有key的，只有val
+for v := range ch {
+    println(v)
+}
+
+```
+
+## 4. goroutine和channel结合使用
+
+```go
+func main() {
+	var gCh = make(chan int, 10)
+	wg.Add(2)
+	go fn1(gCh)
+	go fn2(gCh)
+	wg.Wait()
+	fmt.Printf("退出主函数\n")
+}
+
+var wg sync.WaitGroup
+
+// 写入数据
+func fn1(ch chan int) {
+	for i := range 10 {
+		ch <- i
+		time.Sleep(time.Millisecond * 50)
+	}
+    defer close(ch)
+	defer wg.Done()
+}
+
+// 读取数据
+func fn2(ch chan int) {
+	for v := range ch {
+		println(v)
+		time.Sleep(time.Millisecond * 50)
+	}
+	defer wg.Done()
+}
+
+```
+

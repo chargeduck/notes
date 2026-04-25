@@ -1,0 +1,23 @@
+/* .vitepress/theme/style.css */
+
+/* 右侧大纲容器：高度撑满、超出滚动 */
+.VPDoc .aside-container {
+    height: 100vh;
+    overflow-y: auto;
+    padding-top: 24px; /* 和原版对齐 */
+}
+
+/* 可选：美化滚动条（Chrome/Safari） */
+.aside-container::-webkit-scrollbar {
+    width: 6px;
+}
+.aside-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.aside-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+.aside-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

@@ -4,6 +4,9 @@
     "vitepress": "^1.0.0-rc.32",
     "vitepress-plugin-mermaid": "^2.0.17"
   },
+  "volta": {
+    "node": "18.16.0"
+  },
   "scripts": {
     "docs:dev": "vitepress dev docs --host ::",
     "docs:build": "vitepress build docs",
