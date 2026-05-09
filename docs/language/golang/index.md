@@ -1,4 +1,4 @@
->golang,还没开始学，等我看完php的 [it营golang视频教程 42/84](https://www.bilibili.com/video/BV1Rm421N7Jy/?spm_id_from=333.1391.0.0&p=42&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b)
+>golang,还没开始学，等我看完php的 [it营golang视频教程 42/84](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=45)
 
 # 1. 下载安装及简单示例
 
@@ -1939,6 +1939,8 @@ for v := range ch {
 
 ## 4. goroutine和channel结合使用
 
+> 两个管道，一个写入一个读取
+
 ```go
 func main() {
 	var gCh = make(chan int, 10)
@@ -1972,3 +1974,187 @@ func fn2(ch chan int) {
 
 ```
 
+> 三个管道, intCh负责存入12万个数字 primeCh负责筛选素数 exitCh负责阻塞等待primeCh全部完成，最后关闭primeCh
+
+```go
+package main
+
+import (
+	"fmt"
+	"math"
+	"sync"
+)
+
+// 全局等待组：用于等待所有协程执行完毕，防止主程序提前退出
+var wg sync.WaitGroup
+
+func main() {
+	// ========== 1. 创建三个管道，负责不同的协作任务 ==========
+
+	// intCh：任务管道 → 存放 2~120000 所有待判断的数字
+	// 带缓冲 1000，提高并发效率，不会让生产者立刻阻塞
+	intCh := make(chan int, 1000)
+
+	// primeCh：结果管道 → 存放判断出来的素数
+	// 打印协程从这里取数输出
+	primeCh := make(chan int, 1000)
+
+	// exitCh：结束信号管道 → 16个素数协程干完活就发一个信号
+	// 用来确保所有协程都执行完再关闭结果管道
+	exitCh := make(chan int, 16)
+
+	// ========== 2. 设置等待组计数 ==========
+	// 一共要等 19 个协程结束：
+	// 1个生产者 + 16个素数判断 + 1个打印 + 1个关闭监控 = 19
+	wg.Add(19)
+
+	// ========== 3. 启动生产者协程：往管道放数字 ==========
+	go putNum(intCh)
+
+	// ========== 4. 启动 16 个素数判断协程（并发核心） ==========
+	for i := 0; i < 16; i++ {
+		go primeNum(intCh, primeCh, exitCh)
+	}
+
+	// ========== 5. 启动打印协程：输出素数 ==========
+	go printPrime(primeCh)
+
+	// ========== 6. 启动监控协程：等待所有素数协程干完活 ==========
+	go func() {
+		// 循环 16 次：等待 16 个素数协程都发送结束信号
+		// 重点：从空管道读取会阻塞 → 这里会一直等，直到收齐16个信号
+		for i := 0; i < 16; i++ {
+			<-exitCh
+		}
+
+		// 收齐信号 → 所有素数已经生产完毕 → 可以安全关闭结果管道
+		close(primeCh)
+
+		// 通知等待组：本协程执行完毕
+		wg.Done()
+	}()
+
+	// ========== 7. 主协程阻塞，等待所有子协程完成 ==========
+	wg.Wait()
+	fmt.Println("🎉 所有素数计算完成！")
+}
+
+// ------------------------------------------------------------
+// putNum 生产者协程：向 intCh 管道放入 2 ~ 120000 的所有数字
+// ------------------------------------------------------------
+func putNum(intCh chan int) {
+	// 函数退出时，通知等待组完成任务
+	defer wg.Done()
+
+	// 放入需要判断的数字
+	for i := 2; i < 120_000; i++ {
+		intCh <- i
+	}
+
+	// 数字全部放完 → 关闭管道
+	// 关闭后，下游协程 range 遍历完数据会自动退出
+	close(intCh)
+}
+
+// ------------------------------------------------------------
+// primeNum 素数判断协程：从 intCh 取数判断，是素数就放入 primeCh
+// ------------------------------------------------------------
+func primeNum(intCh, primeCh, exitCh chan int) {
+	// 函数退出时，通知等待组 + 发送结束信号
+	defer func() {
+		// 向 exitCh 发送信号：告诉监控协程，我干完活了
+		exitCh <- 0
+		wg.Done()
+	}()
+
+	// 从任务管道循环取数，管道关闭后会自动退出循环
+	for num := range intCh {
+		if isPrime(num) {
+			// 是素数 → 发送到结果管道
+			primeCh <- num
+		}
+	}
+}
+
+// ------------------------------------------------------------
+// isPrime 判断一个数是否是素数（优化版，无多余逻辑）
+// ------------------------------------------------------------
+func isPrime(num int) bool {
+	// 小于 2 一定不是素数
+	if num <= 1 {
+		return false
+	}
+
+	// 只需要判断到 √num，大幅提升效率
+	sqrtNum := int(math.Sqrt(float64(num)))
+	for i := 2; i <= sqrtNum; i++ {
+		// 能被整除 → 不是素数
+		if num%i == 0 {
+			return false
+		}
+	}
+
+	// 循环结束都没被整除 → 是素数
+	return true
+}
+
+// ------------------------------------------------------------
+// printPrime 打印协程：输出所有素数
+// ------------------------------------------------------------
+func printPrime(primeCh chan int) {
+	// 函数退出时，通知等待组
+	defer wg.Done()
+
+	// 循环从结果管道取素数，管道关闭后取完数据自动退出
+	for num := range primeCh {
+		fmt.Printf("%d 是素数\n", num)
+	}
+}
+```
+
+## 5. 单向管道
+
+> 在go中定义的管道默认就是双向管道，但是有些时候需要进行限制，只能进行发送或者是接收,创建的时候通过 `<-`的前后位置来指定是只读还是只写
+
+```go
+// 正常双向管道
+ch := make(chan int, 2)
+ch <- 1
+ch <- 2
+m1 := <-ch
+m2 := <-ch
+fmt.Println(m1, m2)
+
+// 单向只写管道
+ch2 := make(chan<- int, 2)
+ch2 <- 1
+// 读取报错
+// m3 := <- ch2
+
+// 单向只读管道
+ch3 := make(<-chan int, 2)
+// 写入报错
+// ch3 <- 3
+// 这里ch是空的直接读取会报错 all goroutines are asleep - deadlock!
+m4 := <-ch3
+fmt.Printf("m4 = %d\n", m4)
+```
+
+> 这里的用途，可以把一个双向管道拆成两个管道，一个只读一个只写,比方说生产者和消费者的场景，**<font color=red>生产者只写不允许读就用 chan <-，消费者只读不允许写就用 <- chan</font>**
+
+```go
+var writeOnlyCh chan<- int = ch
+var readOnlyCh <-chan int = ch
+writeOnlyCh <- 4
+writeOnlyCh <- 5
+// 这里会报错
+//m5 := <-writeOnlyCh
+
+m6 := <-readOnlyCh
+m7 := <-readOnlyCh
+fmt.Println(m6, m7)
+```
+
+
+
+## 6. selector多路复用

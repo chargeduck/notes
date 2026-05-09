@@ -42,6 +42,6 @@ mise activate pwsh | Out-String | Invoke-Expression
 ```shell
 mise install node@20
 -- 全局默认版本
-mise use --global node@18.16.0
+mise use --g node@18.16.0
 node -v 
 ```
