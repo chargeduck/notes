@@ -1,4 +1,4 @@
->golang,还没开始学，等我看完php的 [it营golang视频教程 42/84](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=45)
+>逐渐接受golang的语法了也是，不知道后续会不会用得到。 [it营golang视频教程 49/84](https://www.bilibili.com/video/BV1Rm421N7Jy?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=49)
 
 # 1. 下载安装及简单示例
 
@@ -2155,6 +2155,178 @@ m7 := <-readOnlyCh
 fmt.Println(m6, m7)
 ```
 
+## 6. select多路复用
 
+> 在某些场景下需要从多个通道接收数据，这个时候就可以用到select多路复用，投到在接收数据的时候没如果没有数据就会发生阻塞。
+>
+> select的使用类似与switch语句，有一系列的case和default分支，每个case对应一个管道的通信，select会一直等待，直到某一个case通信操作完成
 
-## 6. selector多路复用
+```go
+select {
+    case <- ch1:
+    	// todo
+    case data := <- ch2:
+    	...
+    default:
+}
+```
+
+```go
+// 使用select多路复用的时候，不需要关闭channel
+func main() {
+	intCh := make(chan int, 10)
+	for i := range 10 {
+		intCh <- i * i
+	}
+
+	strCh := make(chan string, 10)
+	for i := range 10 {
+		strCh <- "hello " + strconv.Itoa(i)
+	}
+	for {
+		select {
+		case i := <-intCh:
+			println(i)
+			time.Sleep(time.Millisecond * 100)
+		case s := <-strCh:
+			println(s)
+			time.Sleep(time.Millisecond * 100)
+		default:
+			println("default")
+			return
+		}
+	}
+}
+```
+
+## 7. 并发安全和锁
+
+### 1. 互斥锁
+
+> 互斥锁是传统并发编程中对共享资源进行访问控制的主要手段，它由标准库sync中的Mutex结构体类型表示。`sync.Mutex`类型只有两个公开的指针方法，Lock和unlock。Lock锁定当前的共享资源，Unlock进行解锁
+
+```go
+var count = 0
+var wg sync.WaitGroup
+var mutex sync.Mutex
+
+func main() {
+	for _ = range 20 {
+		wg.Add(1)
+		go test()
+	}
+	wg.Wait()
+}
+
+func test() {
+	mutex.Lock()
+	count++
+	fmt.Println(count)
+	time.Sleep(time.Millisecond)
+	defer mutex.Unlock()
+	defer wg.Done()
+}
+```
+
+### 2. 读写互斥锁
+
+> 读写锁可以让多个读操作并发同时读取，但是对于写到做是完全互斥的，**<font color=red>当一个goroutine进行写操作的时候，其他goroutine既不能读也不能写</font>**，使用`sync.RWMutex`来表示
+
+```go
+func (*RWMutex) Lock() //写入锁定
+func (*RWMutex) Unlock() //写入解锁
+func (*RWMutex) RLock() //读取锁定
+func (*RWMutex) RUnlock() //读取解锁
+```
+
+# 16. 反射
+
+> 反射是指在程序运行期间对程序本身进行访问和修改的能力。正常情况程序在编译时，变量被转换为内存地址，变量名不会被编译器写入到可执行部分。在运行程序时，程序无法获取自身的信息。支持反射的语言可以在程序编译期将变量的反射信息，如字段名称、类型信息、结构体信息等整合到可执行文件中，并给程序提供接口访问反射信息，这样就可以在程序运行期获取类型的反射信息，并且有能力修改它们。
+
+1. 反射可以在程序运行期间动态的获取变量的各种信息，比如变量的类型 类别
+2. 如果是结构体，通过反射还可以获取结构体本身的信息，比婚结构体的字段、结构体的方法。
+3. 通过反射，可以修改变量的值，可以调用关联的方法
+
+## 1. 通过反射获取类型
+
+```go
+func main() {
+	reflectType(true)
+	reflectType(10)
+	// 类型名称 Person 种类 struct
+	reflectType(Person{"张三", 18})
+}
+
+func reflectType(x any) {
+	v := reflect.TypeOf(x)
+	fmt.Println("类型名称：", v.Name())
+	fmt.Println("类型Kind：", v.Kind())
+	fmt.Printf("%v\n", v)
+}
+
+type Person struct {
+	Name string
+	Age  int
+}
+```
+
+## 2. 反射获取值
+
+```go
+func refletValue(x any) {
+	// 反射获取变量的原始值
+	v := reflect.ValueOf(x)
+	// 转换成int类型
+	i := v.Int()
+	fmt.Println("int类型值：", i)
+	float := v.CanFloat()
+	fmt.Println("是否可以转换为float类型：", float)
+	// 转换成string类型
+	s := v.String()
+	fmt.Println("string类型值：", s)
+
+}
+```
+
+## 3. 反射设置值
+
+> 设置值的时候需要用指针
+
+```go
+func reflectSetValue(x any) {
+	v := reflect.ValueOf(x)
+	v.Elem().SetInt(100)
+}
+func main() {
+    a := 10
+    reflectSetValue(&a)
+    println(a)
+}
+```
+
+## 4. 结构体反射
+
+> 后续再问AI吧。
+
+```go
+func PrintStructFiled(s any) {
+	t := reflect.TypeOf(s)
+	v := reflect.ValueOf(s)
+	if t.Kind() != reflect.Struct && t.Elem().Kind() != reflect.Struct {
+		fmt.Println("不是结构体类型")
+		return
+	}
+	fieldNum := t.NumField()
+	fmt.Println("结构体字段数量：", fieldNum)
+	for i := range fieldNum {
+		fmt.Printf("字段名称：%s，字段类型：%v,值： %v\n",
+			t.Field(i).Name,
+			t.Field(i).Type,
+            // 获取值必须用这个，不用用Type获取       
+			v.Field(i).Interface(),
+		)
+	}
+}
+```
+
+# 17. 文件操作
