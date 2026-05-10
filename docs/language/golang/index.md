@@ -2330,3 +2330,234 @@ func PrintStructFiled(s any) {
 ```
 
 # 17. 文件操作
+
+## 1. 读取文件
+
+> 读取完毕的时候会返回一个`io.EOF`的异常，不是通过读取的`字节 =-1`来判断的
+
+1. 使用最原始的`Os.OpenFile`读取
+
+````go
+func OsOpenFile() {
+	file, _ := os.Open("G:/test.txt")
+	// 关闭文件
+    defer file.Close()
+	// 1. 使用 file.Read() 读取文件内容
+	byteSlice := make([]byte, 1024)
+	var strSlice []byte
+	n, err := file.Read(byteSlice)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(byteSlice[:n]))
+	for {
+		n, err := file.Read(byteSlice)
+		if err == io.EOF { // 正确判断结束
+			break
+		}
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		strSlice = append(strSlice, byteSlice[:n]...)
+	}
+	fmt.Println(string(strSlice))
+}
+````
+
+```java
+try(FileInputStream fis = new FileInputStream("G:/test.txt")) {
+    byte[] bytes = new byte[1024];
+    int read = 0;
+    StringBuilder sb = new StringBuilder();
+    while ((read = fis.read(bytes)) != -1) {
+        sb.append(new String(bytes, 0, read));
+    }
+    System.out.println(sb);
+} catch (Exception e) {
+    e.printStackTrace();
+}
+```
+
+- 使用bufio读取
+
+```go
+func BufIoRead() {
+	file, _ := os.Open(path)
+	defer file.Close()
+	reader := bufio.NewReader(file)
+	var fileStr string
+	for {
+		// 最后一行没有分隔符，就会出现标记结束之前也会有返回值的情况
+		str, err := reader.ReadString('\n')
+		fileStr += str
+		if err == io.EOF {
+			// 标记结束之后也可能会有返回值
+			break
+		}
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	fmt.Println(fileStr)
+}
+```
+
+- **<font color=red>常用的读取方式</font>**
+
+```go
+// 小文件直接全部读取内存中
+func OsReadFile() {
+	fileStr, _ := os.ReadFile(path)
+	fmt.Println(string(fileStr))
+}
+
+// 按行读取
+func BufIoScannerRead() {
+	file, _ := os.Open(path)
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text()) // 一行行读
+	}
+}
+
+// 缓冲区读取
+func BufferReadAll() {
+	file, _ := os.Open(path)
+	defer file.Close()
+	reader := bufio.NewReader(file)
+	content, _ := io.ReadAll(reader)
+	fmt.Println(string(content))
+}
+```
+
+## 2. 写入文件
+
+### 1. 通用流程
+
+1. 打开文件
+
+> **<font color=red>写入的使用需要使用Os.OpenFile方法，使用Open是只读的</font>**
+
+```go
+// 1. 文件的路径
+// 2. 打开模式
+// 3. 文件权限，只对 Unix/Linux系统有用
+file,err := Os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
+```
+
+| 模式          | 意思                     |
+| ------------- | ------------------------ |
+| `os.O_RDONLY` | 只读（只能读）           |
+| `os.O_WRONLY` | 只写（只能写）           |
+| `os.O_RDWR`   | **可读可写**             |
+| `os.O_CREATE` | **没有就创建，有就打开** |
+| `os.O_APPEND` | 写入时**追加**（不覆盖） |
+| `os.O_TRUNC`  | 打开时**清空文件内容**   |
+
+2. 写入文件
+
+```go
+file.Write([]byte(str)) //写入字节切片数据
+file.WriteString("直接写入字符串")
+```
+
+3. 关闭文件流
+
+```go
+defer file.Close()
+```
+
+```go
+func WriteFile(op string) {
+	rf, _ := os.Open(path)
+	defer rf.Close()
+	wf, err := os.OpenFile(op, os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer wf.Close()
+	for {
+		bs := make([]byte, 1024)
+		n, err := rf.Read(bs)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		wf.Write(bs[:n])
+	}
+	fmt.Println("写入完成")
+}
+```
+
+### 2. bufio写入
+
+```go
+func WriteByBufio(op string) {
+	// 打开读文件
+	rf, _ := os.Open(path)
+	defer rf.Close() // 自动关闭
+
+	// 打开写文件（覆盖写入）
+	wf, err := os.OpenFile(op, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
+	if err != nil {
+		fmt.Println("打开写入文件失败:", err)
+		return
+	}
+	defer wf.Close()
+
+	// 创建缓冲写入器
+	writer := bufio.NewWriter(wf)
+	defer writer.Flush() // 函数结束自动刷新缓冲区
+
+	// ✅【核心：把 rf 的内容写入 wf】
+	buf := make([]byte, 1024) // 1024字节缓冲区
+	for {
+		// 从读文件读取数据
+		n, err := rf.Read(buf)
+		if err == io.EOF {
+			break // 读取完毕
+		}
+		if err != nil {
+			fmt.Println("读取失败:", err)
+			return
+		}
+
+		// ✅ 写入到写文件
+		_, err = writer.Write(buf[:n])
+		if err != nil {
+			fmt.Println("写入失败:", err)
+			return
+		}
+	}
+
+	fmt.Println("文件复制完成！")
+}
+```
+
+### 3. Os直接复制的
+
+```go
+func WriteByOs(op string) {
+	rf, _ := os.Open(path)
+	defer rf.Close()
+
+	wf, _ := os.OpenFile(op, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
+	defer wf.Close()
+
+	// 一行完成：从 rf 读取 → 直接 os.Write 写入 wf
+	io.Copy(wf, rf)
+}
+// 1. 输出的文件路径 
+// 2. 写入的内容
+// 3. 写入的权限
+os.WriteFile(path, []byte(op), 0666)
+```
+
