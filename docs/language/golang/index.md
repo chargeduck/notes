@@ -2561,3 +2561,65 @@ func WriteByOs(op string) {
 os.WriteFile(path, []byte(op), 0666)
 ```
 
+### 4. 判断是否是目录
+
+```go
+func isDir(path string) bool {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return fi.IsDir()
+}
+```
+
+## 3. 操作目录
+
+1. 创建目录,存在的话创建会报错
+
+```go
+os.Mkdir("G:/test/", 0666)
+```
+
+2. 创建多级目录
+
+```go
+os.MkdirAll("g:/test/test1/test2", "")
+```
+
+3. 删除目录
+
+```go
+os.Remove("/aaa")
+os.RemoveAll("/aaa/123")
+```
+
+## 4. 其他操作
+
+1. 重命名
+
+```go
+os.Rename("G:/test01.txt", "G:/test02.log")
+```
+
+# 18. 泛型 T
+
+```(value
+func typeOf[T any](t T) T {
+	return t
+}
+func typeOf2[T, E any](t T, e E) (T,E) {
+	return t, e
+}
+```
+
+```go
+// str := typeOf[string]("string") 高版本的go会自动推断类型
+str := typeOf("string")
+fmt.Println(len(str))
+str2, int2 := typeOf2("Hello", 100)
+fmt.Println(str2, int2)
+```
+
+
+
