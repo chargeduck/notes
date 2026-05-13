@@ -1,10 +1,11 @@
-/* .vitepress/theme/style.css */
-
 /* 右侧大纲容器：高度撑满、超出滚动 */
 .VPDoc .aside-container {
-    height: 100vh;
+    /* 关键：减去导航栏高度，再加上原有的padding-top */
+    height: calc(100vh - var(--vp-nav-height));
     overflow-y: auto;
-    padding-top: 24px; /* 和原版对齐 */
+    /* 顶部边距改为从导航栏下方开始 */
+    margin-top: var(--vp-nav-height);
+    padding-top: 24px;
 }
 
 /* 可选：美化滚动条（Chrome/Safari） */
