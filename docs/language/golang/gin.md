@@ -182,3 +182,253 @@ c.HTML(http.StatusOK, "admin/index.html", gin.H{
 		})
 ```
 
+# 3.  动态传参
+
+1. get参数
+
+```http
+GET http://localhost:8080?username=zhangsan&age=18
+```
+
+```go
+r.GET("/", func(c *gin.Context) {
+    username := c.Query("username")
+	// 带默认值的
+    age := c.DeafultQuery("age", 18)
+    c.JSON(http.StatusOK, gin.H{
+        "username": username,
+        "age":      age,
+    })
+})
+```
+
+2. 动态路由传参
+
+```http
+GET http://localhost:8080/user/20
+```
+
+```go
+r.GET("/user/:id", func(c *gin.Context) {
+    id := c.Param("id")
+    c.JSON(http.StatusOK, gin.H{
+        "id": id,
+    })
+})
+```
+
+3. post表单传过来的数据
+
+```http
+POST http://localhost:8080/user
+```
+
+```go
+r.POST("/user/add", func(c *gin.Context) {
+    username := c.PostForm("username")
+    age := c.DefaultPostForm("age")
+})
+```
+
+4. get post参数绑定到结构体
+
+> 结构体必须有`form tag`
+
+```go
+type UserInfo struct {
+	Username string `json:"username" form:"username"`
+	Age      int    `json:"age" form:"age"`
+}
+r.GET("/getUser", func(c *gin.Context) {
+		user := &UserInfo{}
+		if err := c.ShouldBind(&user); err == nil {
+			fmt.Printf("%#v\n", user)
+			c.JSON(http.StatusOK, user)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
+	})
+```
+
+5. post json参数
+
+> 结构体必须有json标签
+
+```go
+r.POST("/getUser", func(c *gin.Context) {
+    var user UserInfo
+
+    // 3. 绑定 JSON：使用 ShouldBindJSON
+    if err := c.ShouldBindJSON(&user); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "msg":  "参数错误",
+            "error": err.Error(),
+        })
+        return
+    }
+
+    // 4. 正常处理业务
+    c.JSON(http.StatusOK, gin.H{
+        "msg":  "成功接收 JSON",
+        "data": user,
+    })
+})
+```
+
+6. 接受文件
+
+```go
+r.POST("/upload", func(c *gin.Context) {
+    // 1. 获取文件（file 是前端传的字段名）
+    file, err := c.FormFile("file")
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "msg": "获取文件失败",
+        })
+        return
+    }
+
+    // 2. 保存文件到本地
+    // 第二个参数是保存路径 + 文件名
+    err = c.SaveUploadedFile(file, "./"+file.Filename)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "msg": "保存文件失败",
+        })
+        return
+    }
+
+    // 3. 返回成功
+    c.JSON(http.StatusOK, gin.H{
+        "msg":     "上传成功",
+        "文件名":  file.Filename,
+        "大小":    file.Size,
+    })
+})
+```
+
+# 4. 路由分组
+
+> 如果都写在一个文件里这个文件会比较乱，所以需要进行路由分组和文件抽离，这样单独维护路由文件夹就好了
+
+1. 分组
+
+> 通过`r.Group()`方法进行分组
+
+```go
+r := gin.Default()
+defaultRouters := r.Group("/")
+{
+    defaultRouters.GET("/", func(c *gin.Context) {
+        // todo
+    })
+}
+apiRouters := r.Group("/api")
+{
+    apiRouters.GET("/api/userList", func(c *gin.Context){
+        // todo
+    })
+}
+r.Run()
+```
+
+2. 路由文件抽离
+
+> 在根目录创建 `routers` 和 `controller`两个目录
+
+```go
+// adminController.go
+package controller
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+func Login(context *gin.Context) {
+	context.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "登录成功",
+	})
+}
+```
+
+```go
+// adminRouter.go
+package routers
+
+import (
+	"gin_demo/demo04/controller"
+
+	"github.com/gin-gonic/gin"
+)
+
+func AdminRoutersInit(router *gin.Engine) {
+	adminRouter := router.Group("/admin")
+	{
+		adminRouter.GET("/login", controller.Login)
+	}
+}
+```
+
+```go
+// main.go
+package main
+
+import (
+	"gin_demo/demo04/routers"
+
+	"github.com/gin-gonic/gin"
+)
+
+func main() {
+	r := gin.Default()
+	routers.AdminRoutersInit(r)
+	routers.ApiRoutersInit(r)
+	routers.DefaultRoutersInit(r)
+	r.Run(":8080")
+}
+```
+
+> 还有一种就是给结构体添加方法，这样用起来会比较简单
+
+```go
+package controller
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+type ApiController struct {}
+
+func (ctrl ApiController) UserList(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "获取用户列表成功",
+	})
+}
+```
+
+```go
+// apiRouters.go
+package routers
+
+import (
+	"gin_demo/demo04/controller"
+
+	"github.com/gin-gonic/gin"
+)
+
+func ApiRoutersInit(router *gin.Engine) {
+	apiRouter := router.Group("/api")
+	{
+		apiRouter.GET("/api/userList", controller.ApiController{}.UserList)
+	}
+}
+```
+

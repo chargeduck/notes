@@ -255,6 +255,10 @@ export default withMermaid({
                                 {
                                     text: 'Hertz框架',
                                     link: '/language/golang/hertz'
+                                },
+                                {
+                                    text: 'Wails框架',
+                                    link: '/language/golang/wails'
                                 }
                             ]
                         },
