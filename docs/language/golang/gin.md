@@ -432,3 +432,45 @@ func ApiRoutersInit(router *gin.Engine) {
 }
 ```
 
+# 5. 路由中间件
+
+> 我感觉这个相当于是一个拦截器之类的吧，但是教程里说是Gin中间件
+
+```go
+func ApiRoutersInit(router *gin.Engine) {
+	apiRouter := router.Group("/api")
+	{
+		apiRouter.GET("/api/userList", routerInterceptor, controller.ApiController{}.UserList)
+	}
+}
+func routerInterceptor(c *gin.Context)  {
+	fmt.Println("routerInterceptor")
+    // 继续执行下一个中间件
+	c.Next()
+}
+```
+
+```go
+// 终止调用该请求的后续中间件。
+c.About()
+
+// 全局使用
+r.Use(routerInterceptor)
+
+// 单独一个分组使用
+apiRouter := router.Group("/api", routerInterceptor)
+{
+    
+}
+
+// 中间件传值用 ctx.Set ctx.Get获取值
+ctx.Set("username", 123)
+username := ctx.Get("username")
+
+// 中间件使用goroutine不能直接使用上下文，应该用只读副本。
+cCopy := ctx.Copy()
+go func(){
+    path := cCopy.Request.URL.Path
+}
+```
+

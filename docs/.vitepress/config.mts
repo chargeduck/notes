@@ -259,6 +259,10 @@ export default withMermaid({
                                 {
                                     text: 'Wails框架',
                                     link: '/language/golang/wails'
+                                },
+                                {
+                                    text: 'GORM',
+                                    link: '/language/golang/gorm'
                                 }
                             ]
                         },
