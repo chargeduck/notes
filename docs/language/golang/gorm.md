@@ -130,6 +130,167 @@ func (User) TableName() string {
 }
 ```
 
+## 3. CURD操作
+
+### 1. 查询
+
+1. 查询所有数据
+
+```go
+func GetStudentList(c *gin.Context) {
+	var studentList []models.Student
+	models.DB.Find(&studentList)
+	c.JSON(http.StatusOK, studentList)
+}
+```
+
+2. 添加where条件
+
+```go
+// 获取成年的用户列表
+func GetAdultUserList(c *gin.Context) {
+	var adultUserList []models.User
+	models.DB.Where("age >= ?", 18).Find(&adultUserList)
+	c.JSON(http.StatusOK, adultUserList)
+}
+```
+
+3. 条件查询
+
+```go
+func GetUserById(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 0, 64)
+	user := models.User{ID: int(id)}
+	dbResult := models.DB.First(&user)
+	if dbResult.Error == gorm.ErrRecordNotFound {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户不存在"})
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}
+```
+
+4. in
+
+```go
+user := models.User{}
+models.DB.Where("id in (?)", []int{3,5,6}).Find(&user)
+```
+
+5. 返回自定义字段
+
+```go
+models.DB.Select("id", "age").Find(&user)
+```
+
+6. 排序
+
+```go
+models.DB.Order("id desc").Find(&userList)
+```
+
+7. 分页
+
+```go
+models.DB.Offset(2).Limit(10).Find(&userList)
+```
+
+8. 统计数量
+
+```go
+var num int
+models.DB.Find(&userList).count(&num)
+```
+
+### 2. 新增
+
+```go
+func AddUser(c *gin.Context) {
+	user := []models.User{}
+	c.ShouldBind(&user)
+	user.AddTime = utils.CustomTime{time.Now()}
+	models.DB.Create(&user)
+	c.JSON(http.StatusOK, user)
+}
+```
+
+### 3. 修改
+
+1. 使用Save修改所有的字段
+
+```go
+func EditUser(c *gin.Context) {
+	user := models.User{}
+
+	// 1. 参数绑定 + 错误判断
+	if err := c.ShouldBind(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
+		return
+	}
+
+	// 2. 必须先查用户是否存在
+	dbResult := models.DB.Where("id = ?", user.ID).First(&user)
+
+	// 3. 正确判断：用户不存在
+	if dbResult.Error == gorm.ErrRecordNotFound {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户不存在"})
+		return
+	}
+
+	// 4. 其他数据库错误（如连接失败）
+	if dbResult.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
+		return
+	}
+
+	// 5. 更新用户（推荐用 Updates，只更新非零字段）
+	models.DB.Model(&user).Updates(&user)
+
+	// 返回
+	c.JSON(http.StatusOK, user)
+}
+```
+
+2. 修改部分字段
+
+```go
+user := models.User{}
+models.Db.Model(&user)
+.Where("id = ?", 6)
+.Update("name", "test")
+```
+
+### 4. 删除
+
+```go
+func DeleteUser(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 0, 64)
+	user := models.User{ID: int(id)}
+	dbResult := models.DB.Delete(&user)
+	if dbResult.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+}
+```
+
+### 5. 使用原生SQL
+
+```go
+var user models.User
+models.DB.Raw("select * from user where id = ?", 6).Scan(&user)
+models.DB.Exec("delete from user where id = ?", 6)
+```
+
+## 4. 表关联查询
+
+### 1. 一对一
+
+### 2. 一对多
+
+### 3. 多对多
+
 # X. 遇到的一些问题
 
 ## 1. Error #01: json: unsupported type: func() time.Time
