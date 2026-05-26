@@ -287,7 +287,77 @@ models.DB.Exec("delete from user where id = ?", 6)
 
 ### 1. 一对一
 
+> 主要就是关联查询里边的那个`Perload`，然后就是如果没有外键约束的时候这个id关联字段是要符合gorm的规范的。关联的`结构体名称_id`这样子
+
+1. 用户地址
+
+```go
+package models
+
+type UserAddress struct {
+	ID         int      `gorm:"column:id;primary_key;AUTO_INCREMENT" json:"id"`
+	Address    string   `gorm:"column:address" json:"address"`
+	UserID     int      `gorm:"column:user_id" json:"userId"`
+	Phone      string   `gorm:"column:phone" json:"phone"`
+	CategoryID int      `gorm:"column:category_id" json:"categoryId"`
+	Category   Category `json:"category"`
+}
+
+func (UserAddress) TableName() string {
+	return "user_address"
+}
+```
+
+2. 地址类型
+
+```go
+package models
+
+type Category struct {
+	ID   int    `gorm:"column:id;primaryKey_key;AUTO_INCREMENT" json:"id"`
+	Name string `gorm:"column:name" json:"name"`
+}
+
+func (Category) TableName() string {
+	return "category"
+}
+```
+
+3. 关联查询
+
+```go
+func GetUserAddressList(c *gin.Context) {
+	var userAddressList []models.UserAddress
+	models.DB.Preload("Category").Find(&userAddressList)
+	c.JSON(200, userAddressList)
+}
+```
+
 ### 2. 一对多
+
+```go
+type User struct {
+	ID          int              `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Username    string           `gorm:"column:username" json:"username"`
+	Age         int              `gorm:"column:age" json:"age"`
+	Email       string           `gorm:"column:email" json:"email"`
+	AddTime     utils.CustomTime `gorm:"column:add_time" json:"add_time"`
+	UserAddress []UserAddress    `gorm:"foreignKey:UserId" json:"user_address"`
+}
+
+// 表名
+func (User) TableName() string {
+	return "user"
+}
+```
+
+```go
+func GetUserAddress(c *gin.Context) {
+	var userList []models.User
+	models.DB.Preload("UserAddress").Find(&userList)
+	c.JSON(http.StatusOK, userList)
+}
+```
 
 ### 3. 多对多
 
