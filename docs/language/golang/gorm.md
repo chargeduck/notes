@@ -361,6 +361,84 @@ func GetUserAddress(c *gin.Context) {
 
 ### 3. 多对多
 
+> 这里需要是通过tag来实现的`gorm:"many2many:table_name;`
+
+1. 中间库
+
+```go
+package models
+
+type LessonStudent struct {
+	LessonID  int `gorm:"column:lesson_id" json:"lesson_id"`
+	StudentID int `gorm:"column:student_id" json:"student_id"`
+}
+
+func (LessonStudent) TableName() string {
+	return "lesson_student"
+}
+```
+
+2. 课程表
+
+```go
+package models
+
+type Lesson struct {
+	ID   int    `gorm:"column:id;primaryKey;autoIncrement" json:"id"`
+	Name string `gorm:"column:name" json:"name"`
+}
+
+func (Lesson) TableName() string {
+	return "lesson"
+}
+```
+
+3. 学生表
+
+> **<font color=red>这里对应的多对多的表一定要是切片类型的！</font>**
+
+```go
+package models
+
+type Student struct {
+	ID     int      `gorm:"column:id;primaryKey;autoIncrement"`
+	Name   string   `gorm:"column:name"`
+	Age    int      `gorm:"column:age"`
+	Lesson []Lesson `gorm:"many2many:lesson_student;"`
+}
+
+// 表名
+func (Student) TableName() string {
+	return "student"
+}
+```
+
+4. controller方法
+
+```go
+func (s StudentController) GetStudentAndLessonList(c *gin.Context) {
+	var studentList []models.Student
+	models.DB.Preload("Lesson").Find(&studentList)
+	c.JSON(http.StatusOK, studentList)
+}
+```
+
+## 4. 预定义SQL
+
+> 比方说在Preload里边加载的东西需要排序，这个时候就可以使用预定义SQL
+
+```go
+func (s StudentController) GetStudentAndLessonList(c *gin.Context) {
+	var studentList []models.Student
+	models.DB.Preload("Lesson", func (db *gorm.DB) *gorm.DB {
+		return models.DB.Order("lesson.id DESC")
+	}).Find(&studentList)
+	c.JSON(http.StatusOK, studentList)
+}
+```
+
+
+
 # X. 遇到的一些问题
 
 ## 1. Error #01: json: unsupported type: func() time.Time
@@ -455,6 +533,22 @@ func (ct *CustomTime) Scan(value interface{}) error {
 ```go
 type User struct {
     AddTime utils.CustomTime `gorm:"column:add_time"`
+}
+```
+
+## 3. 多对多查询报错 reflect.MakeSlice of non-slice type  
+
+```tex
+reflect.MakeSlice of non-slice type                                                     
+```
+
+> 这是因为我创建多对多的时候忘了设置成切片类型了。
+
+```go
+type Student struct {
+    // 这里应该用切片
+    Lesson Lesson `gorm:"many2many:lesson_student;"`
+    Lesson []Lesson `gorm:"many2many:lesson_student;"`
 }
 ```
 
