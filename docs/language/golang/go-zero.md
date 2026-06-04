@@ -124,39 +124,29 @@ go_zero_demo
 │  go.sum
 │  readme.md
 │  shop.api -- api定义文件
-│  shop.go -- 生成的启动类
-│       
+│  shop.go -- 程序主入口     
 ├─etc
-│      shop-api.yaml
-│      
+│      shop-api.yaml --API服务配置寄文件
 ├─internal
 │  ├─config  -- 配置目录
-│  │      config.go
-│  │      
+│  │      config.go --配置结构体和加载逻辑
 │  ├─handler --services目录 这个目录是自动生成的几乎不用管，只改logic里边的方法就行了
-│  │  │  routes.go
-│  │  │  	
+│  │  │  routes.go --路由注册配置
 │  │  ├─article	
 │  │  │      getarticledetailhandler.go
 │  │  │      getarticlelisthandler.go
-│  │  │      
 │  │  └─focus
 │  │          getfocuslisthandler.go
-│  │          
 │  ├─logic  --生成的业务逻辑都在这里，修改这里的方法就可以了
 │  │  ├─article
 │  │  │      getarticledetaillogic.go
 │  │  │      getarticlelistlogic.go
-│  │  │      
 │  │  └─focus
 │  │          getfocuslistlogic.go
-│  │          
 │  ├─svc
-│  │      servicecontext.go
-│  │      
+│  │      servicecontext.go -- 服务上下文
 │  └─types
-│          types.go
-│          
+│          types.go 请求响应结构体定义
 └─tmp
         runner-build.exe
 ```
@@ -281,5 +271,118 @@ goctl --version
 goctl env check --
 ```
 
+## 3. 相关命令
 
+1. 创建项目
+
+```shell
+# 使用命令创建项目
+goctl api new first_demo
+# 当然也可以使用.api文件来创建
+goctl api go --api sjop.api --dir .
+```
+
+2. 生成文档
+
+```shell
+goctl api doc --dir . --o ./doc
+```
+
+3. 生成对应语言的调用文件
+
+```shell
+# 支持 go ts dart java等多种语言，其他语言需要插件
+goctl api dart --api shop.api --dir ./dart
+goctl api ts --api shop.api --dir ./ts
+```
+
+
+
+## 4. 配置修改
+
+### 1. 从配置文件中注入
+
+> 在first_demo中添加数据库配置
+
+```yml
+Name: shop-api
+Host: 0.0.0.0
+Port: 8888
+Mysql:
+  Database: root:dream@tcp(127.0.0.1:3306)/gorm_demo?charset=utf8mb4&parseTime=True&loc=Local
+```
+
+> 修改`config/config.go`,这样在其他地方就能用到这个配置了
+
+```go
+package config
+
+import "github.com/zeromicro/go-zero/rest"
+
+type Config struct {
+	rest.RestConf
+	Mysql struct {
+		Database string
+	}
+}
+```
+
+```go
+func main() {
+	flag.Parse()
+
+	var c config.Config
+	conf.MustLoad(*configFile, &c)
+
+	server := rest.MustNewServer(c.RestConf)
+	defer server.Stop()
+
+	ctx := svc.NewServiceContext(c)
+	handler.RegisterHandlers(server, ctx)
+    // 例如这样
+	fmt.Println(c.Mysql.Database)
+
+	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
+	server.Start()
+}
+```
+
+### 2. service上下文添加
+
+> 主要是修改`svc/servicecontext.go`
+
+```go
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.10.1
+
+package svc
+
+import (
+	"go_zero_demo/internal/config"
+)
+// 修改这个就可以了
+type ServiceContext struct {
+	Config     config.Config
+	DataSource string
+}
+
+func NewServiceContext(c config.Config) *ServiceContext {
+	return &ServiceContext{
+		Config:     c,
+		DataSource: c.Mysql.Database,
+	}
+}
+```
+
+```go
+func (l *GetArticleListLogic) GetArticleList() (resp *types.ArticleResp, err error) {
+	// todo: add your logic here and delete this line
+	print(l.svcCtx.DataSource)
+	return
+}
+```
+
+
+
+# 3. api语法详解
 
