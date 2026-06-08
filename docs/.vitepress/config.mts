@@ -156,6 +156,10 @@ export default withMermaid({
                     {
                         text: 'MongoDB',
                         link: '/database/mongodb'
+                    },
+                    {
+                        text: 'Neo4j',
+                        link: '/database/neo4j/index'
                     }
                 ]
             },
@@ -409,6 +413,7 @@ export default withMermaid({
                     items: [
                         {text: 'ElasticSearch', link: '/database/elasticSearch'},
                         {text: 'MongoDB', link: '/database/mongodb'},
+                        {text: 'Neo4j', link: '/database/neo4j'},
                     ]
                 }
             ],
