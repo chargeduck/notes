@@ -193,7 +193,7 @@ import QiZha from '../../components/neo4j/qizha.vue'
 
 ### 5. Neo4j Browser
 
-> 一旦安装了Neo4j，就可以通过其提供的 `WebUI` 访问[localhost:7474/browser](http://localhost:7474/browser)
+> 一旦安装了Neo4j，就可以通过其提供的 `WebUI` 访问[localhost:7474/browser](localhost:7474/browser)
 
 ## 5. 使用场景
 
