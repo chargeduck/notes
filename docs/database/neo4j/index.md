@@ -1,5 +1,5 @@
 :::tip
-Neo4j 图数据库，[Neo4j教程](https://www.bilibili.com/video/BV12i421h7K8?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=8)，[官网](https://neo4j.com/)
+Neo4j 图数据库，[Neo4j教程](https://www.bilibili.com/video/BV12i421h7K8?p=8)，[官网](https://neo4j.com/)
 :::
 
 # 1. 简介
