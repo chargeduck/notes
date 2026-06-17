@@ -1,5 +1,5 @@
 :::tip
-Neo4j 图数据库，[Neo4j教程](https://www.bilibili.com/video/BV12i421h7K8?p=8)，[官网](https://neo4j.com/)
+Neo4j 图数据库，[Neo4j教程](https://www.bilibili.com/video/BV12i421h7K8?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=9&spm_id_from=333.788.player.switch)，[官网](https://neo4j.com/)
 :::
 
 # 1. 简介
@@ -256,3 +256,101 @@ services:
 ## 2. 安装 Neo4j Community Server
 
 > [下载地址 https://neo4j.com/deployment-center/](https://neo4j.com/deployment-center/)
+
+# 3. Neo4j-CQL使用
+
+## 1. CQL简介
+
+> Neo4j的Cypher语言是为处理图形数据而构建的，CQL代表Cypher查询语言。像oracle数据库具有查询语言SQL，Neo4具有CQL作为查询语言。
+
+| CQL命令  | 用法                         |
+| -------- | ---------------------------- |
+| CREATE   | 创建节点，关系和属性         |
+| MATCH    | 检索有关节点，关系和属性数据 |
+| RETURN   | 返回查询结果                 |
+| WHERE    | 提供条件过滤检索数据         |
+| DELETE   | 删除节点和关系               |
+| REMOVE   | 删除节点和关系的属性         |
+| ORDER BY | 排序检索的数据               |
+| SET      | 添加或更新标签               |
+
+```mermaid
+flowchart LR
+  A((name: 诸葛<br/> Person)) --knows--> B((name: fox <br/>Person))
+  B --knows--> C((name: 周瑜<br/> Person))
+  C --knows-->A
+```
+
+使用cypher语言来描述关系
+
+> `(fox)`表示一个节点 
+>
+> `[:knows]`表示一个关系
+
+```cypher
+(fox)<-[:knows]-(周瑜)-[:knows]->(诸葛)-[:knows]->(fox)
+```
+
+```cypher
+MATCH (fox:Person), (周瑜:Person), (诸葛:Person)
+WHERE (周瑜)-[:knows]->(fox)
+  AND (周瑜)-[:knows]->(诸葛)
+  AND (诸葛)-[:knows]->(fox)
+```
+
+## 2. 常见命令
+
+### 1. load命令
+
+> 从csv加载节点和关系到neo4j中，需要注意的是需要把文件放到`import`目录下才行,当然也能够使用绝对路径，只不过需要一些配置，修改`neo4j.conf`
+>
+> ```ini
+> # 允许读取本地任意file://路径
+> dbms.security.allow_csv_import_from_file_urls=true
+> # 可选：取消import目录限制（空值=无限制）
+> dbms.directories.import=
+> ```
+
+```cypher
+LOAD CSV FROM "file:///xiyouji_relationships.csv" AS line
+create (:xiyouRelation {from:line[1],relation:line[3],to:line[0]})
+```
+
+> 这个命令是没有表头的，可以用下标来设置节点和关系
+
+| 参数            | 描述                                                         |
+| --------------- | ------------------------------------------------------------ |
+| LOAD CSV        | 导入csv的关键字，Cypher专属数据导入语句。<br/>读取外部csv文本文件，按照都好自动切分每行单元格<br/>适用于批量初始化图数据库，导入业务关系数据 |
+| WITH HEADERS    | 第一行是表头                                                 |
+| WITHOUR HEADERS | 没有表头                                                     |
+| FROM 'filePath' | 指定要读取的的文件地址<br/>协议有`file://`和`https://`       |
+| AS line         | 起个别名，后边好用                                           |
+| create          | 创建关系                                                     |
+| :xiyouRelation  | 节点名称                                                     |
+| from            | 从节点                                                       |
+| relation        | 关系                                                         |
+| to              | 结束节点                                                     |
+
+> 如果是下边这种带代表头的，就不能使用下标了，要用表头才行，如果表头有特殊符号则需要用到**`** 来转义才行
+
+```cypher
+LOAD CSV WITH HEADERS FROM "file:///xiyouji_relationships.csv" AS line
+CREATE (:xiyouRelation {
+    from: line.`:START_ID`,
+    to: line.`:END_ID`,
+    relation: line.`:TYPE`
+});
+```
+
+> 删除所有的西游记关系
+
+```cypher
+MATCH (n:xiyouRelation) DETACH DELETE n;
+```
+
+```cypher
+MATCH (n:Person {name: '高翠兰'}) return n,elementId(n)
+```
+
+
+
