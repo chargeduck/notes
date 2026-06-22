@@ -300,7 +300,7 @@ WHERE (周瑜)-[:knows]->(fox)
 
 ## 2. 常见命令
 
-### 1. load命令
+### 1. LOCD CSV命令
 
 > 从csv加载节点和关系到neo4j中，需要注意的是需要把文件放到`import`目录下才行,当然也能够使用绝对路径，只不过需要一些配置，修改`neo4j.conf`
 >
@@ -349,8 +349,76 @@ MATCH (n:xiyouRelation) DETACH DELETE n;
 ```
 
 ```cypher
+// 查询name等于高翠兰的节点
 MATCH (n:Person {name: '高翠兰'}) return n,elementId(n)
+// 用where是一样的                                                  
+MATCH (n :Person) where n.name = '猪八戒' return n.name, elementId(n)                                                  
+```
+
+### 2. CREATE 
+
+> Create语句用来创建数据模型
+
+#### 1. 创建节点
+
+```cypher
+// 创建简单节点
+create (n)
+// 创建多个节点
+create (n),(m)
+// 创建带标签和属性的节点并返回节点
+create (n:Person {name: '如来'}) return n        
+```
+
+#### 2. 创建关系
+
+> Neo4j图数据库遵循属性图模型来存储和管理数据。
+>
+> 根据属性图模型，关系应该是定向的，否则Neo4j将会抛出一个错误信息。
+>
+> 基础方向性，Neo4j的关系氛围两种主要类型**<font color=red>单向关系</font>**和**<font color=red>双向关系</font>**
+>
+> **<font color=red>创建关系的时候如果是有特殊符号或者是中文，需要用 反引号 `包裹住</font>**
+
+```cypher
+// 使用新节点创建关系
+create (n:person {name: '杨戬'})-[r:`师傅`]->(m:person {name:'玉鼎真人'})return type(r)
+```
+
+```cypher
+// 使用已知节点创建带属性的关系
+match(n:person {name: '沙僧'}),(m:person {name: '唐僧'})
+create (n)-[r:`师傅` {relation: '师傅'}]->(m) return r                                     
+```
+
+```cypher
+// 检索关系节点的详细信息
+match (n:person)-[r]-(m:person) return n,m
+```
+
+```cypher
+CREATE 
+  (n:person {name: '沙僧'})-[r1:`师兄弟` {relation: '师兄弟'}]->(m：person {name: '孙悟空'}),
+  (m)-[r2:`师兄弟` {relation: '师兄弟'}]->(n)
+RETURN r1,r2
 ```
 
 
+
+#### 3. 创建全新路径
+
+```cypher
+create p=(:person{name: '蛟魔王'})-[:义兄]->(:person{name:'牛魔王'})<-[:义兄]-(:person{name:'鹏魔王'})-[:结义兄弟]->(:person {name:'孙悟空'})-[:徒弟]->(:person{name: '唐僧'}) return p
+```
+
+```cypher
+// 查询蛟魔王和沙僧之间的关系，10层关系以内的
+MATCH path=(A:person{name:"蛟魔王"})-[*1..10]-(B:person{name:"沙僧"})
+RETURN path
+```
+
+```cypher
+MATCH (oldTang:person) WHERE elementId(oldTang)=75
+DETACH DELETE oldTang;
+```
 
