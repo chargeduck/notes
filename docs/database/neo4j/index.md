@@ -403,8 +403,6 @@ CREATE
 RETURN r1,r2
 ```
 
-
-
 #### 3. 创建全新路径
 
 ```cypher
@@ -422,3 +420,150 @@ MATCH (oldTang:person) WHERE elementId(oldTang)=75
 DETACH DELETE oldTang;
 ```
 
+> 使用`MATCH MERGE`创建关系，如果有关系则不操作，没有则创建，不会创建重复关系
+
+```cypher
+// 一次性匹配所有人物节点
+MATCH 
+    (ts:person{name:"唐僧"}),
+    (wk:person{name:"孙悟空"}),
+    (wn:person{name:"猪八戒"}),
+    (wj:person{name:"沙僧"}),
+    (blm:person{name:"白龙马"})
+
+// 1. 构建【师傅】单向关系：唐僧 → 所有徒弟
+MERGE (ts)-[:师傅]->(wk)
+MERGE (ts)-[:师傅]->(wn)
+MERGE (ts)-[:师傅]->(wj)
+MERGE (ts)-[:师傅]->(blm)
+
+// 2. 构建【师兄弟】无向互相关系：悟空、八戒、沙僧两两为师兄弟
+MERGE (wk)-[:师兄弟]-(wn)
+MERGE (wk)-[:师兄弟]-(wj)
+MERGE (wn)-[:师兄弟]-(wj)
+
+// 可选返回结果，查看构建好的节点和关系
+RETURN ts, wk, wn, wj, blm
+```
+
+
+
+### 3. MATCH 查询
+
+> 这个命令只要用于以下两个场景。
+>
+> 1. 从数据库中获取有关节点和属性的数据
+> 2. 从数据库中获取有关节点，关系和属性的数据
+
+1. 简单查询
+
+```cypher
+// 查询Person的前25的节点
+MATCH (n: Person) return n LIMIT 25
+```
+
+2. 精确查询，模糊查询
+
+> **<font color=red>CONTAINS /= ~</font>**无法走索引，大量数据需要全文检索
+>
+> **<font color=blue>STARTS WITH</font>**能够使用字符串索引
+
+```cypher
+// 查询name等于孙悟空的数据
+MATCH (n: Person {name: '孙悟空'}) return n
+MATCH (n: Person) WHERE n.name = '孙悟空' return n
+// 查询name包含悟空的节点
+MATCH (n: Person) WHERE n.name CONTAINS '悟空' return n
+// 查询name以孙开头的节点
+MATCH (n: Person) WHERE n.name STARTS WITH '孙' return n
+// 查询name以空结尾的节点
+MATCH (n: Person) WHERE n.name ENDS WITH '空' return n
+```
+
+3. 正则模糊查询
+
+```cypher
+// 查询name包含悟空的节点
+MATCH (n: Person) WHERE n.name =~ '.*悟空.*' return n
+// 查询name以孙开头的节点
+MATCH (n: Person) WHERE n.name =~ '孙.*' return n
+// 查询name以空结尾的节点(忽略大小写)
+MATCH (n: Person) WHERE toLower(n.name) =~  '.*空' return n
+```
+
+| 解释                                       | SQL                 | CQL                      | CQL正则               |
+| ------------------------------------------ | ------------------- | ------------------------ | --------------------- |
+| 包含A                                      | `name LIKE '%A%'`   | `n.name CONTAINS 'A'`    | `n.name =~ '.*A.*'`   |
+| 以A开头                                    | `name LIKE 'A%'`    | `n.name STARTS WITH 'A'` | `n.name =~ 'A.*'`     |
+| 以A结尾                                    | `name LIKE '%A'`    | `n.name ENDS WITH 'A'`   | `n.name =~ '.*A'`     |
+| 任意前缀 + A + 任意单个字符 + B + 任意后缀 | `name LIKE '%A_B%'` |                          | `n.name =~ '.*A.B.*'` |
+
+### 4. RETURN 返回
+
+1. 返回节点的某个属性 `n.name`
+2. 返回节点的所有属性 `n`
+3. 返回节点和关联关系的属性
+
+```cypher
+MATCH (n: Person) RETURN elementId(n),n.name,n.relation
+```
+
+### 5. WHERE语句
+
+### 6. DELETE删除
+
+1. 删除节点
+
+> 这种情况如果节点有关系的话会提示报错，有关系不能删除
+
+```cypher
+MATCH (n:Person) DELETE n 
+```
+
+2. 强制删除
+
+```cypher
+MATCH (n:Person) DETACH DELETE n
+```
+
+| 关键字          | 描述                   |
+| --------------- | ---------------------- |
+| DELETE          | 删除，不级联删除       |
+| NODETACH DELETE | 同DELETE               |
+| DETACH DELETE   | 级联删除，关系也会删除 |
+
+
+
+### 7. REMOVE删除
+
+### 8. SET
+
+### 9. ORDER BY
+
+### 10. UNION
+
+### 11. LIMIT 和 SKIP
+
+# X. 练习
+
+## 1. 创建一个机房，两个机柜，给他们创建关系
+
+1. 先创建节点，然后创建关系
+
+```cy
+create (sr:ServerRoom{name:'崂山机房', id: 'S001'}),(r1:Rack{name:'一号机柜',id: 'R001'}),(r2:Rack{name:'二号机柜',id:'R002'})
+```
+
+```cypher
+MATCH (s:ServerRoom{id:'S001'}),(r1:Rack{id:'R001'}),(r2:Rack{id:'R002'})
+MERGE (s)-[:管理]->(r1)    
+MERGE (s)-[:管理]->(r2)                                                              
+```
+
+2. 使用create一次性创建节点和关系
+
+```cypher
+CREATE
+(sr:ServerRoom{name:'崂山机房', id:'S001'})-[:管理]->(r1:Rack{name:'一号机柜', id:'R001'}),
+(sr)-[:管理]->(r2:Rack{name:'二号机柜', id:'R002'})
+```
