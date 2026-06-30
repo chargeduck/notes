@@ -1,5 +1,5 @@
 :::tip
-Neo4j 图数据库，[Neo4j教程](https://www.bilibili.com/video/BV12i421h7K8?vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=9&spm_id_from=333.788.player.switch)，[官网](https://neo4j.com/)
+Neo4j 图数据库，[Neo4j教程](https://www.bilibili.com/video/BV12i421h7K8?spm_id_from=333.788.player.switch&vd_source=d9d3eb78433e98d94cd75ddf5ac0382b&p=11)，[官网](https://neo4j.com/)
 :::
 
 # 1. 简介
@@ -510,6 +510,8 @@ MATCH (n: Person) RETURN elementId(n),n.name,n.relation
 
 ### 5. WHERE语句
 
+> 详见 #MATCH 查询
+
 ### 6. DELETE删除
 
 1. 删除节点
@@ -532,17 +534,72 @@ MATCH (n:Person) DETACH DELETE n
 | NODETACH DELETE | 同DELETE               |
 | DETACH DELETE   | 级联删除，关系也会删除 |
 
-
-
 ### 7. REMOVE删除
+
+> 用来删除节点或关系的标签和属性，与SET是一对对立的关系
+
+```cypher
+// 删除属性
+MATCH (n:role {name: 'fox'}) remove n.age return n
+// 创建节点
+CREATE (m:role:person{name:'firefox'})
+// 删除标签
+MATCH (m:role:person{name:'firefox'}) remove m:person resturn m                       
+```
 
 ### 8. SET
 
-### 9. ORDER BY
+> 给节点或者关系添加新属性，或者更新属性
 
-### 10. UNION
+```cypher
+MATCH (n:Browser {name:'firefox'}) set n.version=111 return n
+```
 
-### 11. LIMIT 和 SKIP
+### 9. ADD LABELS
+
+> 添加标签
+
+```cypher
+MATCH (b:Browser{name:'firefox',version:111})
+ADD LABELS b:Software:Client:App
+```
+
+### 10. ORDER BY
+
+> 排序字段，跟SQL的是一样的，默认是升序，降序用DESC就行
+
+```cypher
+MATCH (n: Order) RETURN n ORDER BY n.amount DESC
+```
+
+### 11. UNION
+
+> 和SQL一起，可以将两个子句的结果合并成一组成果
+
+- UNION 不返回重复的行
+- UNION ALL 返回重复的行
+
+### 12. LIMIT 和 SKIP
+
+> 跳过一些结果和返回限制条数，有点类似与stream流里边的skip和limit
+
+```cypher
+MATCH (n:Person) WHERE age > 18 SKIP 10 LIMIT 10
+```
+
+### 13. IS NULL / IS NOT NULL
+
+```cypher
+MATCH (n:Menu) WHERE n.parent is null SKIP 10 LIMIT 10
+```
+
+### 14. IN 
+
+```cypher
+MATCH (n:Menu) WHERE n.name in ['用户管理', '权限管理']
+```
+
+
 
 # X. 练习
 
