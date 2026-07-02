@@ -599,6 +599,142 @@ MATCH (n:Menu) WHERE n.parent is null SKIP 10 LIMIT 10
 MATCH (n:Menu) WHERE n.name in ['用户管理', '权限管理']
 ```
 
+### 15. INDEX索引
+
+> Neo4jSQL支持节点或关系属性上的索引，以提高应用程序的性能。
+> 我们可以为具有相同标签名称的所有节点的属性创建索引。
+> 我们可以在MATCH或WHERE或IN运算符上使用这些索引列来改进CQL Command的执行。
+
+#### 1. 节点索引
+
+1. 单属性普通索引（节点）
+
+```cypher
+create index idx_user_name FOR (n:User) ON (n.name)
+```
+
+2. 复合索引
+
+```cy
+CREATE INDEX idx_user_name_age FOR (n:User) ON (n.name, n.age);
+```
+
+3. 唯一索引
+
+```cypher
+CREATE CONSTRAINT unique_user_name FOR (n:User) REQUIRE n.name IS UNIQUE;
+```
+
+4. 全文检索索引（模糊，分词使用）
+
+```cypher
+CREATE FULLTEXT INDEX ft_user_title 
+FOR (n:User) ON EACH [n.name, n.desc];
+```
+
+#### 2. 关系索引
+
+1. 关系单属性索引
+
+```cypher
+// 关系类型FRIEND，属性createTime
+CREATE INDEX idx_rel_friend_time FOR ()-[r:FRIEND]-() ON (r.createTime);
+```
+
+2. 关系复合索引
+
+```cypher
+CREATE INDEX idx_rel_friend_time_level FOR ()-[r:FRIEND]-() ON (r.createTime, r.level);
+```
+
+3. 关系全文索引
+
+```cy
+CREATE FULLTEXT INDEX ft_rel_comment 
+FOR ()-[r:COMMENT]-() ON EACH [r.content];
+```
+
+#### 3. 看所有索引 / 约束
+
+```cypher
+SHOW INDEXES;
+SHOW CONSTRAINTS;
+```
+
+#### 4. 删除索引
+
+```cypher
+DROP INDEX idx_user_name;
+DROP INDEX idx_rel_friend_time;
+```
+
+#### 5. 删除约束
+
+```cypher
+DROP CONSTRAINT unique_user_name;
+// 不指定名称、按定义删除（5.x 兼容）
+DROP CONSTRAINT FOR (n:User) REQUIRE n.phone IS UNIQUE;
+```
+
+## 3. 常用函数
+
+### 1. 字符串函数
+
+| 函数      | 描述                 |
+| --------- | -------------------- |
+| UPPER     | 将所有字母转为大写   |
+| LOWER     | 将所有字母转换成小写 |
+| SUBSTRING | 截取字符串           |
+| REPLACE   | 替换字符串           |
+
+```cypher
+MATCH (e) RETURN eemenId(e),e.name.substring(e.nae. 0, 2)
+```
+
+### 2. AGGREGATION聚合
+
+| 函数  | 描述            |
+| ----- | --------------- |
+| COUNT | 返回MATCH的行数 |
+| MAX   | 返回最大值      |
+| MIN   | 最小值          |
+| SUM   | 所有行的和      |
+| AVG   | 平均值          |
+
+### 3. 关系函数
+
+| 函数      | 描述           |
+| --------- | -------------- |
+| STARTNODE | 关系的开始节点 |
+| ENDNODE   | 关系的结束节点 |
+| ELEMENTID | 关系的id       |
+| TYPE      | 关系的type     |
+
+# 4. Neo4j-admin
+
+## 1. 数据库备份
+
+> 对Neo4j数据进行备份，还原，迁移时，需要先关闭neo4j
+
+```shell
+cd %NEO$J_HOME%/bin
+# 关闭
+neo4j stop
+# 备份
+neo4j-admin dummp --database=graph.db --to=/neo4j/backup/graph_backup.dump
+```
+
+## 2. 数据库恢复
+
+> 同样的也需要关闭数据库
+
+```shell
+neo4j-admin load --from=/neo4j/backup/graph_backup.dump --database=graph.db --force
+neo4j start
+```
+
+# 5. 使用CQL构建关系图谱
+
 
 
 # X. 练习
