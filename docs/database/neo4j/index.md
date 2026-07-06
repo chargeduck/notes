@@ -718,7 +718,7 @@ MATCH (e) RETURN eemenId(e),e.name.substring(e.nae. 0, 2)
 
 ```shell
 cd %NEO$J_HOME%/bin
-# 关闭
+# 关闭neo4j 一定要先执行 Neo4j install-service 才可以执行下边的命令
 neo4j stop
 # 备份
 neo4j-admin dummp --database=graph.db --to=/neo4j/backup/graph_backup.dump
@@ -735,7 +735,226 @@ neo4j start
 
 # 5. 使用CQL构建关系图谱
 
+| id   | name         |
+| ---- | ------------ |
+| 1    | 唐僧         |
+| 2    | 孙悟空       |
+| 3    | 猪八戒       |
+| 4    | 沙僧         |
+| 5    | 白龙马       |
+| 6    | 玉皇大帝     |
+| 7    | 王母娘娘     |
+| 8    | 太上老君     |
+| 9    | 太白金星     |
+| 10   | 托塔天王李靖 |
+| 11   | 哪吒         |
+| 12   | 二郎神杨戬   |
+| 13   | 四大天王     |
+| 14   | 增长天王     |
+| 15   | 广目天王     |
+| 16   | 多闻天王     |
+| 17   | 持国天王     |
+| 18   | 巨灵神       |
+| 19   | 千里眼       |
 
+```cypher
+LOAD CSV WITH HEADERS FROM from 'file:///西游角色.csv' as row
+CREATE (n: JueSe {id: row.id, name: row.name})
+```
+
+| fromId | fromName   | toId | toName   | relation |
+| ------ | ---------- | ---- | -------- | -------- |
+| 2      | 孙悟空     | 1    | 唐僧     | 师徒     |
+| 3      | 猪八戒     | 1    | 唐僧     | 师徒     |
+| 4      | 沙僧       | 1    | 唐僧     | 师徒     |
+| 5      | 白龙马     | 1    | 唐僧     | 师徒     |
+| 2      | 孙悟空     | 3    | 猪八戒   | 师兄弟   |
+| 2      | 孙悟空     | 4    | 沙僧     | 师兄弟   |
+| 3      | 猪八戒     | 4    | 沙僧     | 师兄弟   |
+| 405    | 须菩提祖师 | 2    | 孙悟空   | 师徒     |
+| 153    | 菩提祖师   | 2    | 孙悟空   | 师徒     |
+| 1      | 唐僧       | 642  | 金蝉子   | 转世     |
+| 642    | 金蝉子     | 104  | 如来佛祖 | 师徒     |
+| 3      | 猪八戒     | 48   | 天蓬元帅 | 转世     |
+| 4      | 沙僧       | 47   | 卷帘大将 | 转世     |
+
+```cypher
+LOAD CSV WITH HEADERS FROM from 'file:///西游关系.csv' as row
+CREATE (n: Guanxi {formId: row.formId, formName: row.formName,toId:row.toId,toName:row.toName,relation:row.relation})
+```
+
+> 创建关系图谱
+
+1. 不使用apoc插件
+
+```cypher
+MATCH (f:JueSe),(r:Guanxi),(t:JueSe)
+where f.id=r.fromId and r.toId=t.id
+create (f)-[:关系{relation:r.relation}]->(t)                            
+```
+
+2. 使用apoc插件,这样可以用来动态生成关系标签
+
+```cypher
+MATCH (f:JueSe),(r:Guanxi),(t:JueSe) 
+WHERE f.id = r.fromId AND r.toId = t.id 
+CALL apoc.create.relationship(f, r.relation, {}, t) YIELD rel RETURN rel
+```
+
+# 6. 安装APOC插件
+
+> APOC（Awesome Procedures on Cypher）是 Neo4j 官方提供的扩展存储过程库，提供了大量 Cypher 原生不具备的功能。
+>
+> 1. 支持从 Excel、JSON、XML 导入导出，以及 HTTP 远程请求
+> 2. 动态创建关系标签（原生只支持静态标签）
+> 3. 批量导入大文件，支持分块导入避免内存溢出
+> 4. 图算法、数据生成、文本处理等工具函数
+
+## 1. 前置：放开 APOC 权限
+
+> 无论哪种安装方式，jar 放入 plugins 目录后，**必须**在 `neo4j.conf` 中添加以下配置并重启，否则执行 APOC 过程会报 `ProcedureNotFound`。
+
+```ini
+# 允许 APOC 所有存储过程
+dbms.security.procedures.unrestricted=apoc.*
+# 显式允许列表（可选，与上行任选其一或同时使用）
+dbms.security.procedures.allowlist=apoc.*
+```
+
+## 2. 验证安装
+
+在 Neo4j Browser 中执行，返回版本号即安装成功：
+
+```cypher
+RETURN apoc.version()
+```
+
+也可查看已注册的 APOC 过程列表：
+
+```cypher
+CALL apoc.help('apoc')
+```
+
+## 3. 各安装方式详解
+
+### 3.1 裸机安装（Neo4j Community Server）
+
+1. 查看 Neo4j 版本：
+
+```cypher
+CALL dbms.components() YIELD versions RETURN versions;
+```
+
+2. 从 [APOC GitHub Releases](https://github.com/neo4j/apoc/releases) 下载**版本号匹配**的 jar 包。例如 Neo4j 5.26.x → 下载 `apoc-5.26.x-core.jar`
+
+3. 将 jar 放入 Neo4j 安装目录的 `plugins` 文件夹：
+
+```
+C:\Program Files\Neo4j\neo4j-community-5.26.x\plugins\
+```
+
+4. 修改 `conf/neo4j.conf`，添加权限配置（见第 1 节）。
+
+5. 重启 Neo4j 服务，执行 `RETURN apoc.version()` 验证。
+
+### 3.2 Docker 安装（推荐）
+
+**方式一：环境变量自动下载（最简单）**
+
+在 `docker-compose.yml` 中添加 `NEO4J_PLUGINS` 环境变量，容器启动时自动从官方源下载匹配版本的 APOC：
+
+```yml
+environment:
+  NEO4J_AUTH: neo4j/neo4j123
+  NEO4J_PLUGINS: '["apoc"]'
+  NEO4J_dbms_security_procedures_unrestricted: apoc.*
+volumes:
+  - ./neo4j/plugins:/plugins
+```
+
+重新创建容器即可：
+
+```bash
+docker-compose up -d
+```
+
+> 容器重建后 `plugins` 目录会自动出现 `apoc.jar`，无需手动下载。
+
+**方式二：手动挂载 jar**
+
+如果网络受限，可手动下载 jar 到宿主机挂载目录 `./neo4j/plugins/`，然后重启容器：
+
+```bash
+# 下载匹配版本的 apoc-core.jar 放入 plugins 目录
+wget https://github.com/neo4j/apoc/releases/download/5.26.x/apoc-5.26.x-core.jar
+mv apoc-5.26.x-core.jar ./neo4j/plugins/
+
+# 重启
+docker-compose restart
+```
+
+**排查**：验证 jar 是否在容器中生效：
+
+```bash
+docker exec neo4j ls -la /plugins/
+```
+
+```yml
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: neo4j
+    restart: always
+    ports:
+      - "7474:7474"   # Web 管理界面端口
+      - "7687:7687"   # Bolt 协议端口（程序连接用）
+    environment:
+      # 初始用户名/密码，首次登录会强制修改
+      NEO4J_AUTH: neo4j/neo4j123
+      # 内存配置，根据你的机器调整
+      NEO4J_dbms_memory_heap_max__size: 1G
+      NEO4J_dbms_memory_pagecache_size: 512M
+      # 启用 APOC 插件（强烈推荐，做图查询很方便）
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__url_enabled: "true"
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+    volumes:
+      # 数据持久化，会在当前目录生成这些文件夹
+      - ./neo4j/data:/data
+      - ./neo4j/logs:/logs
+      - ./neo4j/import:/import
+      - ./neo4j/plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+```
+
+
+
+### 3.3 Neo4j Desktop 2 安装
+
+1. 打开 Desktop，选中 Project 中的数据库实例
+2. 点击实例右侧 `...` → **Manage**
+3. 切换到 **Plugins** 标签页
+4. 在列表中找到 **APOC**，点击右侧 **Install** 按钮
+5. 切换到 **Settings** 标签页，搜索 `procedures.unrestricted`，取消注释并设为 `apoc.*`
+6. 点击右上角 **Apply**，然后 **Restart** 数据库
+
+> Desktop 中的插件仅对当前 Desktop 管理的实例生效，与 Docker / 裸机安装的 Neo4j 互不影响。
+
+## 4. 常见问题
+
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| `ProcedureNotFound` | `neo4j.conf` 未放开 APOC 权限 | 添加 `dbms.security.procedures.unrestricted=apoc.*` 并重启 |
+| 权限配置后仍然报错 | plugins 目录中没有 APOC jar 或版本不匹配 | 检查 jar 是否存在，版本号是否与 Neo4j 一致（大版本如 5.x 必须对齐） |
+| Desktop 装了 APOC 但 Docker 里调用报错 | Desktop 和 Docker 是两个独立实例，插件互不相通 | 按 3.2 节单独给 Docker 实例安装 |
+| `apoc.version()` 返回正常但部分过程不可用 | APOC 某些子模块需要单独的 jar（如 apoc-mongodb） | 下载对应的扩展 jar 一并放入 plugins |
 
 # X. 练习
 
