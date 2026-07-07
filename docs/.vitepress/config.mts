@@ -413,7 +413,14 @@ export default withMermaid({
                     items: [
                         {text: 'ElasticSearch', link: '/database/elasticSearch'},
                         {text: 'MongoDB', link: '/database/mongodb'},
-                        {text: 'Neo4j', link: '/database/neo4j/index'},
+                        {
+                            text: 'Neo4j',
+                            collapsed: true,
+                            items: [
+                                {text: 'Neo4j基础', link: '/database/neo4j/index'},
+                                {text: 'Neo4j整合Springboot', link: '/database/neo4j/neo4jboot'},
+                            ]
+                        },
                     ]
                 }
             ],

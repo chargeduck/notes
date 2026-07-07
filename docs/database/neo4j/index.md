@@ -615,7 +615,7 @@ create index idx_user_name FOR (n:User) ON (n.name)
 
 2. 复合索引
 
-```cy
+```cypher
 CREATE INDEX idx_user_name_age FOR (n:User) ON (n.name, n.age);
 ```
 
@@ -649,7 +649,7 @@ CREATE INDEX idx_rel_friend_time_level FOR ()-[r:FRIEND]-() ON (r.createTime, r.
 
 3. 关系全文索引
 
-```cy
+```cypher
 CREATE FULLTEXT INDEX ft_rel_comment 
 FOR ()-[r:COMMENT]-() ON EACH [r.content];
 ```
@@ -962,7 +962,7 @@ services:
 
 1. 先创建节点，然后创建关系
 
-```cy
+```cypher
 create (sr:ServerRoom{name:'崂山机房', id: 'S001'}),(r1:Rack{name:'一号机柜',id: 'R001'}),(r2:Rack{name:'二号机柜',id:'R002'})
 ```
 
