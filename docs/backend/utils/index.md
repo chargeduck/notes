@@ -18,3 +18,5 @@
 14. [Grpc连接及Sse推流](/backend/utils/grpcSse)
 15. [Mise 多语言多环境切换工具](/backend/utils/mise)
 16. [桌面客户端一体化打包方案](/backend/utils/innoSetup)
+17. [Poi-Tl框架导出word模板](/backend/utils/wordMergeUtil)
+18. [基于Poi的Excel导出工具类](/backend/utils/templateDownloadUtil)
